@@ -25,14 +25,25 @@ public class ResUtils {
 		return res;
 	}
 
+	/**
+	 * @param res
+	 *            set null to reset original resources
+	 */
 	public static void overrideContext(Context orig, Resources res)
 			throws Exception {
 		ContextWrapper cw = (ContextWrapper) orig;
-		final Context base = cw.getBaseContext();
-		ResContext ctx = new ResContext(base, res);
+		Context base = cw.getBaseContext();
+		if (base instanceof ResContext) {
+			base = ((ResContext) base).getBaseContext();
+		}
 		Field fBase = ContextWrapper.class.getDeclaredField("mBase");
 		fBase.setAccessible(true);
-		fBase.set(orig, ctx);
+		if (res == null) {
+			fBase.set(orig, base);
+		} else {
+			ResContext ctx = new ResContext(base, res);
+			fBase.set(orig, ctx);
+		}
 
 		Field fResources = ContextThemeWrapper.class
 				.getDeclaredField("mResources");
