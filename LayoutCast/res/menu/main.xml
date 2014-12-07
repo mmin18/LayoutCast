@@ -20,4 +20,10 @@
         android:showAsAction="never"
         android:title="@string/action_sdcard"/>
 
+    <item
+        android:id="@+id/action_latest"
+        android:orderInCategory="100"
+        android:showAsAction="never"
+        android:title="@string/action_latest"/>
+
 </menu>

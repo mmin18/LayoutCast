@@ -68,6 +68,39 @@ public class MainActivity extends Activity {
 			}
 			return true;
 		}
+		case R.id.action_latest: {
+			File dir = new File(getCacheDir(), "lcast");
+			File[] fs = dir.listFiles();
+			File latest = null;
+			if (fs != null) {
+				long latestTime = Long.MIN_VALUE;
+				for (File f : fs) {
+					if (f.getName().endsWith(".apk")) {
+						long t = f.lastModified();
+						if (t > latestTime) {
+							latest = f;
+							latestTime = t;
+						}
+					}
+				}
+			}
+			if (latest == null) {
+				Toast.makeText(this, "latest not found", Toast.LENGTH_SHORT)
+						.show();
+			} else {
+				try {
+					Resources res = ResUtils.loadResources(this, latest);
+					ResUtils.overrideContext(this, res);
+					Toast.makeText(this,
+							"Resources has been replaced to latest" + latest,
+							Toast.LENGTH_SHORT).show();
+				} catch (Exception e) {
+					Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT)
+							.show();
+				}
+			}
+			return true;
+		}
 		default:
 			return super.onOptionsItemSelected(item);
 		}
