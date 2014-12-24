@@ -13,6 +13,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.github.mmin18.layoutcast.context.OverrideContext;
 import com.github.mmin18.layoutcast.util.ResUtils;
 
 public class MainActivity extends Activity {
@@ -45,7 +46,7 @@ public class MainActivity extends Activity {
 		}
 		case R.id.action_reset: {
 			try {
-				ResUtils.overrideContext(this, null);
+				OverrideContext.override(this, null);
 			} catch (Exception e) {
 				Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
 			}
@@ -58,8 +59,8 @@ public class MainActivity extends Activity {
 				File dst = new File(getFilesDir(), "res.apk");
 				cp(src, dst);
 				System.out.println("before: " + getResources());
-				Resources res = ResUtils.loadResources(this, dst);
-				ResUtils.overrideContext(this, res);
+				Resources res = ResUtils.getResources(this, dst);
+				OverrideContext.override(this, res);
 				System.out.println("after: " + getResources());
 				Toast.makeText(this, "Resources has been replaced to " + src,
 						Toast.LENGTH_SHORT).show();
@@ -89,8 +90,8 @@ public class MainActivity extends Activity {
 						.show();
 			} else {
 				try {
-					Resources res = ResUtils.loadResources(this, latest);
-					ResUtils.overrideContext(this, res);
+					Resources res = ResUtils.getResources(this, latest);
+					OverrideContext.override(this, res);
 					Toast.makeText(this,
 							"Resources has been replaced to latest" + latest,
 							Toast.LENGTH_SHORT).show();

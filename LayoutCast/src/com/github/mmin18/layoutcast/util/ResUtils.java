@@ -1,20 +1,30 @@
 package com.github.mmin18.layoutcast.util;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.util.SparseArray;
-import android.view.ContextThemeWrapper;
 
 public class ResUtils {
 
-	public static Resources loadResources(Context ctx, File file)
+	private static final HashMap<String, WeakReference<Resources>> resources = new HashMap<String, WeakReference<Resources>>();
+
+	public static Resources getResources(Context ctx, File file)
 			throws Exception {
+		String path = file.getAbsolutePath();
+		WeakReference<Resources> wr = resources.get(path);
+		if (wr != null) {
+			Resources res = wr.get();
+			if (res != null) {
+				return res;
+			}
+		}
+
 		AssetManager am = (AssetManager) AssetManager.class.newInstance();
 		am.getClass().getMethod("addAssetPath", String.class)
 				.invoke(am, file.getAbsolutePath());
@@ -22,37 +32,9 @@ public class ResUtils {
 		Resources superRes = ctx.getResources();
 		Resources res = new Resources(am, superRes.getDisplayMetrics(),
 				superRes.getConfiguration());
+
+		resources.put(path, new WeakReference<Resources>(res));
 		return res;
-	}
-
-	/**
-	 * @param res
-	 *            set null to reset original resources
-	 */
-	public static void overrideContext(Context orig, Resources res)
-			throws Exception {
-		ContextWrapper cw = (ContextWrapper) orig;
-		Context base = cw.getBaseContext();
-		if (base instanceof ResContext) {
-			base = ((ResContext) base).getBaseContext();
-		}
-		Field fBase = ContextWrapper.class.getDeclaredField("mBase");
-		fBase.setAccessible(true);
-		if (res == null) {
-			fBase.set(orig, base);
-		} else {
-			ResContext ctx = new ResContext(base, res);
-			fBase.set(orig, ctx);
-		}
-
-		Field fResources = ContextThemeWrapper.class
-				.getDeclaredField("mResources");
-		fResources.setAccessible(true);
-		fResources.set(orig, null);
-
-		Field fTheme = ContextThemeWrapper.class.getDeclaredField("mTheme");
-		fTheme.setAccessible(true);
-		fTheme.set(orig, null);
 	}
 
 	private static HashMap<String, Integer> layoutIds;

@@ -6,7 +6,11 @@ import java.util.HashMap;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.util.Log;
 import android.view.LayoutInflater;
+
+import com.github.mmin18.layoutcast.context.OverrideContext;
 
 /**
  * Used to replace the application service, provide Activity's layout inflater
@@ -27,6 +31,14 @@ public class BootInflater extends BaseInflater {
 
 	@Override
 	public LayoutInflater cloneInContext(Context newContext) {
+		if (newContext instanceof ContextWrapper) {
+			try {
+				OverrideContext.overrideDefault((ContextWrapper) newContext);
+			} catch (Exception e) {
+				Log.e("lcast", "fail to override resource in context "
+						+ newContext, e);
+			}
+		}
 		return super.cloneInContext(newContext);
 	}
 

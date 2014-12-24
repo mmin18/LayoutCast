@@ -5,14 +5,31 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 
+import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
+import android.content.res.Resources;
 import android.util.Log;
 
+import com.github.mmin18.layoutcast.context.OverrideContext;
 import com.github.mmin18.layoutcast.util.EmbedHttpServer;
+import com.github.mmin18.layoutcast.util.ResUtils;
 
+/**
+ * GET /packagename (get the application package name)<br>
+ * POST /pushres (upload resources file)<br>
+ * PUT /pushres (upload resources file)<br>
+ * POST /lcast (cast to all activities)<br>
+ * POST /reset (reset all activities)<br>
+ * POST /recreate-top (recreate top activity)<br>
+ * 
+ * @author mmin18
+ */
 public class LcastServer extends EmbedHttpServer {
 	public static final int PORT_FROM = 41128;
+	public static Application app;
 	final Context context;
+	File latestPushFile;
 
 	private LcastServer(Context ctx, int port) {
 		super(port);
@@ -41,9 +58,39 @@ public class LcastServer extends EmbedHttpServer {
 				fos.write(buf, 0, l);
 			}
 			fos.close();
+			latestPushFile = file;
 			response.setStatusCode(201);
 			Log.d("lcast", "lcast resources file received (" + file.length()
 					+ " bytes): " + file);
+			return;
+		}
+		if ("/lcast".equalsIgnoreCase(path)) {
+			Resources res = ResUtils.getResources(app, latestPushFile);
+			OverrideContext.setGlobalResources(res);
+			response.setStatusCode(200);
+			response.write(String.valueOf(latestPushFile).getBytes());
+			return;
+		}
+		if ("/reset".equalsIgnoreCase(path)) {
+			OverrideContext.setGlobalResources(null);
+			response.setStatusCode(200);
+			response.write("OK".getBytes());
+			return;
+		}
+		if ("/recreate-top".equalsIgnoreCase(path)) {
+			final Activity a = OverrideContext.getTopActivity();
+			int c = 0;
+			if (a != null) {
+				a.runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						a.recreate();
+					}
+				});
+				c++;
+			}
+			response.setStatusCode(200);
+			response.write(String.valueOf(c).getBytes());
 			return;
 		}
 		super.handle(method, path, headers, input, response);
