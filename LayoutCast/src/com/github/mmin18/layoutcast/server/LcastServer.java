@@ -20,6 +20,8 @@ import com.github.mmin18.layoutcast.util.ResUtils;
  * PUT /pushres (upload resources file)<br>
  * POST /lcast (cast to all activities)<br>
  * POST /reset (reset all activities)<br>
+ * GET /ids.xml<br>
+ * GET /public.xml<br>
  * 
  * @author mmin18
  */
@@ -73,6 +75,24 @@ public class LcastServer extends EmbedHttpServer {
 			OverrideContext.setGlobalResources(null);
 			response.setStatusCode(200);
 			response.write("OK".getBytes());
+			return;
+		}
+		if ("/ids.xml".equalsIgnoreCase(path)) {
+			String Rn = app.getPackageName() + ".R";
+			Class<?> Rclazz = app.getClassLoader().loadClass(Rn);
+			String str = IdProfileBuilder.buildIds(Rclazz);
+			response.setStatusCode(200);
+			response.setContentTypeText();
+			response.write(str.getBytes());
+			return;
+		}
+		if ("/public.xml".equalsIgnoreCase(path)) {
+			String Rn = app.getPackageName() + ".R";
+			Class<?> Rclazz = app.getClassLoader().loadClass(Rn);
+			String str = IdProfileBuilder.buildPublic(Rclazz);
+			response.setStatusCode(200);
+			response.setContentTypeText();
+			response.write(str.getBytes());
 			return;
 		}
 		super.handle(method, path, headers, input, response);
