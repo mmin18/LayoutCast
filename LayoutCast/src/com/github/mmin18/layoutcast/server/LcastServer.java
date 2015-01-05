@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 
-import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.res.Resources;
@@ -21,7 +20,6 @@ import com.github.mmin18.layoutcast.util.ResUtils;
  * PUT /pushres (upload resources file)<br>
  * POST /lcast (cast to all activities)<br>
  * POST /reset (reset all activities)<br>
- * POST /recreate-top (recreate top activity)<br>
  * 
  * @author mmin18
  */
@@ -75,22 +73,6 @@ public class LcastServer extends EmbedHttpServer {
 			OverrideContext.setGlobalResources(null);
 			response.setStatusCode(200);
 			response.write("OK".getBytes());
-			return;
-		}
-		if ("/recreate-top".equalsIgnoreCase(path)) {
-			final Activity a = OverrideContext.getTopActivity();
-			int c = 0;
-			if (a != null) {
-				a.runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						a.recreate();
-					}
-				});
-				c++;
-			}
-			response.setStatusCode(200);
-			response.write(String.valueOf(c).getBytes());
 			return;
 		}
 		super.handle(method, path, headers, input, response);

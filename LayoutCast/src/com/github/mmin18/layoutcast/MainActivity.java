@@ -6,11 +6,13 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import com.github.mmin18.layoutcast.context.OverrideContext;
@@ -24,6 +26,10 @@ public class MainActivity extends Activity {
 		setContentView(R.layout.activity_main);
 
 		System.out.println(getLayoutInflater());
+	}
+
+	public void activity2(View v) {
+		startActivity(new Intent(this, Activity2.class));
 	}
 
 	@Override

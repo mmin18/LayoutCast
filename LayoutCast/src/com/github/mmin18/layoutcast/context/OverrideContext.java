@@ -17,9 +17,12 @@ import android.view.ContextThemeWrapper;
 
 public class OverrideContext extends ContextWrapper {
 
+	private static final int STATE_REQUIRE_RECREATE = 5;
+
 	private final Context base;
 	private Resources resources;
 	private Theme theme;
+	private int state;
 
 	protected OverrideContext(Context base, Resources res) {
 		super(base);
@@ -53,6 +56,8 @@ public class OverrideContext extends ContextWrapper {
 		if (this.resources != res) {
 			this.resources = res;
 			this.theme = null;
+			// TODO:
+			this.state = STATE_REQUIRE_RECREATE;
 		}
 	}
 
@@ -151,6 +156,8 @@ public class OverrideContext extends ContextWrapper {
 		@Override
 		public void onActivityResumed(Activity activity) {
 			activities.put(activity, ACTIVITY_RESUMED);
+
+			checkActivityState(activity);
 		}
 
 		@Override
@@ -171,6 +178,19 @@ public class OverrideContext extends ContextWrapper {
 	};
 
 	//
+	// State
+	//
+
+	private static void checkActivityState(Activity activity) {
+		if (activity.getBaseContext() instanceof OverrideContext) {
+			OverrideContext oc = (OverrideContext) activity.getBaseContext();
+			if (oc.state == STATE_REQUIRE_RECREATE) {
+				activity.recreate();
+			}
+		}
+	}
+
+	//
 	// Global
 	//
 
@@ -188,6 +208,16 @@ public class OverrideContext extends ContextWrapper {
 		}
 		if (err != null) {
 			throw err;
+		}
+
+		final Activity a = OverrideContext.getTopActivity();
+		if (a != null) {
+			a.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					checkActivityState(a);
+				}
+			});
 		}
 	}
 
