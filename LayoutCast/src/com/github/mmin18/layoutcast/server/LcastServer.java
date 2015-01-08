@@ -80,7 +80,8 @@ public class LcastServer extends EmbedHttpServer {
 		if ("/ids.xml".equalsIgnoreCase(path)) {
 			String Rn = app.getPackageName() + ".R";
 			Class<?> Rclazz = app.getClassLoader().loadClass(Rn);
-			String str = IdProfileBuilder.buildIds(Rclazz);
+			String str = new IdProfileBuilder(context.getResources())
+					.buildIds(Rclazz);
 			response.setStatusCode(200);
 			response.setContentTypeText();
 			response.write(str.getBytes());
@@ -89,7 +90,8 @@ public class LcastServer extends EmbedHttpServer {
 		if ("/public.xml".equalsIgnoreCase(path)) {
 			String Rn = app.getPackageName() + ".R";
 			Class<?> Rclazz = app.getClassLoader().loadClass(Rn);
-			String str = IdProfileBuilder.buildPublic(Rclazz);
+			String str = new IdProfileBuilder(context.getResources())
+					.buildPublic(Rclazz);
 			response.setStatusCode(200);
 			response.setContentTypeText();
 			response.write(str.getBytes());
