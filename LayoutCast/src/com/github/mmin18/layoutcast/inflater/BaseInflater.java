@@ -12,7 +12,7 @@ import android.view.ViewStub;
 
 public class BaseInflater extends LayoutInflater {
 	private static final String[] sClassPrefixList = { "android.widget.",
-			"android.webkit." };
+			"android.view.", "android.webkit." };
 	public LayoutInflater inflater;
 
 	public BaseInflater(Context context) {
@@ -52,16 +52,18 @@ public class BaseInflater extends LayoutInflater {
 		public View onCreateView(View parent, String name, Context context,
 				AttributeSet attrs) {
 			try {
-				for (String prefix : sClassPrefixList) {
-					try {
-						View view = createViewInContext(parent, prefix + name,
-								context, attrs);
-						if (view != null) {
-							return view;
+				if (name.indexOf('.') == -1) {
+					for (String prefix : sClassPrefixList) {
+						try {
+							View view = createViewInContext(parent, prefix
+									+ name, context, attrs);
+							if (view != null) {
+								return view;
+							}
+						} catch (ClassNotFoundException e) {
+							// In this case we want to let the base class take a
+							// crack at it.
 						}
-					} catch (ClassNotFoundException e) {
-						// In this case we want to let the base class take a
-						// crack at it.
 					}
 				}
 
