@@ -20,4 +20,9 @@
         android:onClick="activity2"
         android:text="Activity 2" />
 
+    <View
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:background="#6f00" />
+
 </LinearLayout>
