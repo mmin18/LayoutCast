@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">LayoutCast</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="hello_world2">Hello again!</string>
-    <string name="action_settings">Settings</string>
-    <string name="action_inflate">Inflate</string>
-    <string name="action_reset">RESET</string>
-    <string name="action_sdcard">sdcard/res</string>
-    <string name="action_latest">latest</string>
-
 </resources>

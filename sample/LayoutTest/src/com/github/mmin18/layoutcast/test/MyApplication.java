@@ -1,6 +1,8 @@
-package com.github.mmin18.layoutcast;
+package com.github.mmin18.layoutcast.test;
 
 import android.app.Application;
+
+import com.github.mmin18.layoutcast.LayoutCast;
 
 public class MyApplication extends Application {
 

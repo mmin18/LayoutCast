@@ -1,4 +1,4 @@
-package com.github.mmin18.layoutcast;
+package com.github.mmin18.layoutcast.test;
 
 import java.io.File;
 import java.io.FileInputStream;
