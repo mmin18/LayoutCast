@@ -26,4 +26,10 @@
         android:layout_weight="1"
         layout="@layout/aaa_layout" />
 
+    <fragment
+        android:id="@+id/test_fragment"
+        android:name="com.github.mmin18.layoutcast.test.TestFragment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
 </LinearLayout>

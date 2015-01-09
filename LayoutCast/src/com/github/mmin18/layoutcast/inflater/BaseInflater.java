@@ -51,6 +51,11 @@ public class BaseInflater extends LayoutInflater {
 		@Override
 		public View onCreateView(View parent, String name, Context context,
 				AttributeSet attrs) {
+			if ("fragment".equals(name)) {
+				// leave it to the default inflater
+				// will call Activity.onCreateView() to handle fragment tag
+				return null;
+			}
 			try {
 				if (name.indexOf('.') == -1) {
 					for (String prefix : sClassPrefixList) {
@@ -69,11 +74,9 @@ public class BaseInflater extends LayoutInflater {
 
 				return createViewInContext(parent, name, context, attrs);
 			} catch (ClassNotFoundException e) {
-				InflateException ie = new InflateException(
-						attrs.getPositionDescription()
-								+ ": Error inflating class " + name);
-				ie.initCause(e);
-				throw ie;
+				// just ignore and the exception will be throw in onCreateView()
+				// or createView()
+				return null;
 			}
 		}
 	};
