@@ -12,13 +12,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/hello_world" />
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="activity2"
-        android:text="Activity 2" />
+        android:text="Support Fragment" />
 
     <Button
         android:layout_width="match_parent"
@@ -26,9 +20,10 @@
         android:onClick="activity3"
         android:text="Activity 3" />
 
-    <View
-        android:layout_width="1dp"
-        android:layout_height="1dp"
-        android:background="#6f00" />
+    <fragment
+        android:id="@+id/test_fragment"
+        android:name="com.github.mmin18.layoutcast.test.TestSupportFragment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
 </LinearLayout>

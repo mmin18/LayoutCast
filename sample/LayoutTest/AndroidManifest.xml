@@ -27,6 +27,7 @@
             </intent-filter>
         </activity>
         <activity android:name="com.github.mmin18.layoutcast.test.Activity2" />
+        <activity android:name="com.github.mmin18.layoutcast.test.Activity3" />
     </application>
 
 </manifest>

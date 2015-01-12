@@ -32,6 +32,10 @@ public class MainActivity extends Activity {
 		startActivity(new Intent(this, Activity2.class));
 	}
 
+	public void activity3(View v) {
+		startActivity(new Intent(this, Activity3.class));
+	}
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.

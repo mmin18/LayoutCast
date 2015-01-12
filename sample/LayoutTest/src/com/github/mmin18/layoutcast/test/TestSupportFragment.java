@@ -1,14 +1,14 @@
 package com.github.mmin18.layoutcast.test;
 
-import android.app.Fragment;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-public class TestFragment extends Fragment {
+public class TestSupportFragment extends Fragment {
 
-	public TestFragment() {
+	public TestSupportFragment() {
 		new Exception().printStackTrace();
 	}
 
