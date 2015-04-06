@@ -31,23 +31,32 @@ def package_name():
             data = manifestfile.read()
             return re.findall('package=\"([\w\d_\.]+)\"', data)[0]
 
+def cexec(args, failOnError = True):
+    p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    output, err = p.communicate()
+    if failOnError and p.returncode != 0:
+        print('Fail to exec %s'%args)
+        print(output)
+        print(err)
+        exit(1)
+    return output
+
 pn = package_name();
 for i in range(0, 100):
-    check_call(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    p = Popen(['curl', 'http://127.0.0.1:41128/packagename'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    output, err = p.communicate()
-    if p.returncode != 0:
-        exit(1)
-    output.strip()
+    cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
+    output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
     if output == pn:
         print('found package '+pn+' at port %d'%(41128+i))
         break
+    if i == 99:
+        print('package ' + pn + ' not found');
+        exit(1)
 
 if not os.path.exists('bin/lcast/values'):
     os.makedirs('bin/lcast/values')
 
-check_call(['curl', '--silent', '--output', 'bin/lcast/values/ids.xml', 'http://127.0.0.1:41128/ids.xml'])
-check_call(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
+cexec(['curl', '--silent', '--output', 'bin/lcast/values/ids.xml', 'http://127.0.0.1:41128/ids.xml'])
+cexec(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
 
 aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', 'bin/res.zip']
 for dep in deps_list():
@@ -61,8 +70,8 @@ aaptargs.append('-M')
 aaptargs.append('AndroidManifest.xml')
 aaptargs.append('-I')
 aaptargs.append('/Applications/android-sdk-mac_86/platforms/android-19/android.jar')
-check_call(aaptargs)
+cexec(aaptargs)
 
 print('upload and cast..')
-check_call(['curl', '--silent', '-T', 'bin/res.zip', 'http://localhost:41128/pushres'])
-check_call(['curl', '--silent', 'http://localhost:41128/lcast'])
+cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://localhost:41128/pushres'])
+cexec(['curl', '--silent', 'http://localhost:41128/lcast'])
