@@ -41,15 +41,67 @@ def cexec(args, failOnError = True):
         exit(1)
     return output
 
-pn = package_name();
-for i in range(0, 100):
+def get_android_jar(path):
+    if not os.path.isdir(path):
+        return None
+    platforms = os.path.join(path, 'platforms')
+    if not os.path.isdir(platforms):
+        return None
+    api = 0
+    result = None
+    for pd in os.listdir(platforms):
+        pd = os.path.join(platforms, pd)
+        if os.path.isdir(pd) and os.path.isfile(os.path.join(pd, 'source.properties')) and os.path.isfile(os.path.join(pd, 'android.jar')):
+            with open(os.path.join(pd, 'source.properties'), 'r') as f:
+                s = f.read()
+                m = re.search(r'^AndroidVersion.ApiLevel\s*[=:]\s*(.*)$', s, re.MULTILINE)
+                if m:
+                    a = int(m.group(1))
+                    if a > api:
+                        api = a
+                        result = os.path.join(pd, 'android.jar')
+    return result
+
+def find_android_jar():
+    if os.path.isfile('local.properties'):
+        with open('local.properties', 'r') as f:
+            s = f.read()
+            m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
+            if m:
+                r = get_android_jar(m.group(1))
+                if r:
+                    return r
+
+    if os.getenv('ANDROID_HOME'):
+        r = get_android_jar(os.getenv('ANDROID_HOME'))
+        if r:
+            return r
+
+    r = get_android_jar(os.path.expanduser('~/Library/Android/sdk'))
+    if r:
+        return r
+
+    r = get_android_jar('/Applications/android-sdk-mac_86')
+    if r:
+        return r
+
+    r = get_android_jar('/android-sdk-mac_86')
+    if r:
+        return r
+
+pn = package_name()
+android_jar = find_android_jar()
+if not android_jar:
+    print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
+
+for i in range(0, 32):
     cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
     output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
     if output == pn:
         print('found package '+pn+' at port %d'%(41128+i))
         break
-    if i == 99:
-        print('package ' + pn + ' not found');
+    if i == 31:
+        print('package ' + pn + ' not found')
         exit(1)
 
 if not os.path.exists('bin/lcast/values'):
@@ -69,7 +121,7 @@ aaptargs.append('bin/lcast')
 aaptargs.append('-M')
 aaptargs.append('AndroidManifest.xml')
 aaptargs.append('-I')
-aaptargs.append('/Applications/android-sdk-mac_86/platforms/android-19/android.jar')
+aaptargs.append(android_jar)
 cexec(aaptargs)
 
 print('upload and cast..')
