@@ -89,41 +89,43 @@ def find_android_jar():
     if r:
         return r
 
-pn = package_name()
-android_jar = find_android_jar()
-if not android_jar:
-    print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
+if __name__ == "__main__":
 
-for i in range(0, 32):
-    cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
-    output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
-    if output == pn:
-        print('found package '+pn+' at port %d'%(41128+i))
-        break
-    if i == 31:
-        print('package ' + pn + ' not found')
-        exit(1)
+    pn = package_name()
+    android_jar = find_android_jar()
+    if not android_jar:
+        print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
-if not os.path.exists('bin/lcast/values'):
-    os.makedirs('bin/lcast/values')
+    for i in range(0, 32):
+        cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
+        output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
+        if output == pn:
+            print('found package '+pn+' at port %d'%(41128+i))
+            break
+        if i == 31:
+            print('package ' + pn + ' not found')
+            exit(1)
 
-cexec(['curl', '--silent', '--output', 'bin/lcast/values/ids.xml', 'http://127.0.0.1:41128/ids.xml'])
-cexec(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
+    if not os.path.exists('bin/lcast/values'):
+        os.makedirs('bin/lcast/values')
 
-aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', 'bin/res.zip']
-for dep in deps_list():
+    cexec(['curl', '--silent', '--output', 'bin/lcast/values/ids.xml', 'http://127.0.0.1:41128/ids.xml'])
+    cexec(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
+
+    aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', 'bin/res.zip']
+    for dep in deps_list():
+        aaptargs.append('-S')
+        aaptargs.append(os.path.join(dep, 'res'))
     aaptargs.append('-S')
-    aaptargs.append(os.path.join(dep, 'res'))
-aaptargs.append('-S')
-aaptargs.append('res')
-aaptargs.append('-S')
-aaptargs.append('bin/lcast')
-aaptargs.append('-M')
-aaptargs.append('AndroidManifest.xml')
-aaptargs.append('-I')
-aaptargs.append(android_jar)
-cexec(aaptargs)
+    aaptargs.append('res')
+    aaptargs.append('-S')
+    aaptargs.append('bin/lcast')
+    aaptargs.append('-M')
+    aaptargs.append('AndroidManifest.xml')
+    aaptargs.append('-I')
+    aaptargs.append(android_jar)
+    cexec(aaptargs)
 
-print('upload and cast..')
-cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://localhost:41128/pushres'])
-cexec(['curl', '--silent', 'http://localhost:41128/lcast'])
+    print('upload and cast..')
+    cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://localhost:41128/pushres'])
+    cexec(['curl', '--silent', 'http://localhost:41128/lcast'])
