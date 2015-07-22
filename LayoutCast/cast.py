@@ -127,5 +127,5 @@ if __name__ == "__main__":
     cexec(aaptargs)
 
     print('upload and cast..')
-    cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://localhost:41128/pushres'])
-    cexec(['curl', '--silent', 'http://localhost:41128/lcast'])
+    cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://127.0.0.1:41128/pushres'])
+    cexec(['curl', '--silent', 'http://127.0.0.1:41128/lcast'])
