@@ -77,6 +77,11 @@ def find_android_jar():
         if r:
             return r
 
+    if os.getenv('ANDROID_SDK'):
+        r = get_android_jar(os.getenv('ANDROID_SDK'))
+        if r:
+            return r
+
     r = get_android_jar(os.path.expanduser('~/Library/Android/sdk'))
     if r:
         return r
