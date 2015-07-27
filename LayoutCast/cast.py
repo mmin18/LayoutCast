@@ -6,23 +6,82 @@ from subprocess import Popen, PIPE, check_call
 import os
 import re
 
+def is_gradle_project():
+    return os.path.isfile('build.gradle')
+
 def parse_properties(path):
     return os.path.isfile(path) and dict(line.strip().split('=') for line in open(path) if ('=' in line and not line.startswith('#'))) or {}
 
-def __deps_list(list, project):
+def balanced_braces(arg):
+    if '{' not in arg:
+        return ''
+    chars = []
+    n = 0
+    for c in arg:
+        if c == '{':
+            if n > 0:
+                chars.append(c)
+            n += 1
+        elif c == '}':
+            n -= 1
+            if n > 0:
+                chars.append(c)
+            elif n == 0:
+                return ''.join(chars).lstrip().rstrip()
+        elif n > 0:
+            chars.append(c)
+    return ''
+
+def __deps_list_eclipse(list, project):
     prop = parse_properties(os.path.join(project, 'project.properties'))
     for i in range(1,100):
         dep = prop.get('android.library.reference.%d' % i)
         if dep:
             absdep = os.path.abspath(os.path.join(project, dep))
-            __deps_list(list, absdep)
+            __deps_list_eclipse(list, absdep)
             if not absdep in list:
                 list.append(absdep)
 
+def __deps_list_gradle(list, project):
+    with open(os.path.join(project, 'build.gradle'), 'r') as f:
+        str = f.read()
+    # remove comments in groovy
+    str = re.sub(r'''(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*)''', '', str)
+    ideps = []
+    # for depends in re.findall(r'dependencies\s*\{.*?\}', str, re.DOTALL | re.MULTILINE):
+    for m in re.finditer(r'dependencies\s*\{', str):
+        depends = balanced_braces(str[m.start():])
+        for proj in re.findall(r'''compile project\(.*['"]:(.+)['"].*\)''', depends):
+            ideps.append(proj.replace(':', '/'))
+    if len(ideps) == 0:
+        return
+
+    path = project
+    for i in range(1, 3):
+        path = os.path.abspath(os.path.join(path, os.path.pardir))
+        b = True
+        deps = []
+        for idep in ideps:
+            dep = os.path.join(path, idep)
+            if not os.path.isdir(dep):
+                b = False
+                break
+            deps.append(dep)
+        if b:
+            for dep in deps:
+                __deps_list_gradle(list, dep)
+                list.append(dep)
+            break
+
 def deps_list():
-    list = []
-    __deps_list(list, '.')
-    return list
+    if is_gradle_project():
+        list = []
+        __deps_list_gradle(list, '.')
+        return list
+    else:
+        list = []
+        __deps_list_eclipse(list, '.')
+        return list
 
 def package_name():
     path = 'AndroidManifest.xml'
@@ -101,6 +160,11 @@ if __name__ == "__main__":
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
+    if is_gradle_project():
+        print('cast project as gradle project')
+    else:
+        print('cast project as eclipse project')
+
     for i in range(0, 32):
         cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
         output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
@@ -108,6 +172,7 @@ if __name__ == "__main__":
             print('found package '+pn+' at port %d'%(41128+i))
             break
         if i == 31:
+            cexec(['adb', 'forward', '--remove', 'tcp:41128'], failOnError = False)
             print('package ' + pn + ' not found')
             exit(1)
 
