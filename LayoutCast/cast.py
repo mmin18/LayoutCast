@@ -226,13 +226,13 @@ if __name__ == "__main__":
             print('package ' + pn + ' not found')
             exit(1)
 
-    bindir = os.path.join(dir, is_gradle and 'build' or 'bin')
-    binlcastdir = os.path.join(bindir, 'lcast')
-    if not os.path.exists(os.path.join(binlcastdir, 'values')):
-        os.makedirs(os.path.join(binlcastdir, 'values'))
+    bindir = os.path.join(dir, is_gradle and 'build/lcast' or 'bin/lcast')
+    binresdir = os.path.join(bindir, 'res')
+    if not os.path.exists(os.path.join(binresdir, 'values')):
+        os.makedirs(os.path.join(binresdir, 'values'))
 
-    cexec(['curl', '--silent', '--output', os.path.join(binlcastdir, 'values/ids.xml'), 'http://127.0.0.1:41128/ids.xml'])
-    cexec(['curl', '--silent', '--output', os.path.join(binlcastdir, 'values/public.xml'), 'http://127.0.0.1:41128/public.xml'])
+    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:41128/ids.xml'])
+    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:41128/public.xml'])
 
     aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
     if is_gradle:
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     aaptargs.append('-S')
     aaptargs.append(resdir(dir))
     aaptargs.append('-S')
-    aaptargs.append(binlcastdir)
+    aaptargs.append(binresdir)
     aaptargs.append('-M')
     aaptargs.append('AndroidManifest.xml')
     aaptargs.append('-I')
