@@ -203,7 +203,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         dir = sys.argv[1]
 
-    if is_gradle_project(dir):
+    is_gradle = is_gradle_project(dir)
+    if is_gradle:
         print('cast project as gradle project')
     else:
         print('cast project as eclipse project')
@@ -237,6 +238,13 @@ if __name__ == "__main__":
     cexec(['curl', '--silent', '--output', os.path.join(binlcastdir, 'values/public.xml'), 'http://127.0.0.1:41128/public.xml'])
 
     aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
+    if is_gradle:
+        intermediatesRes = os.path.join(dir, 'build/intermediates/res/debug')
+        if countResDir(intermediatesRes) > 1:
+            aaptargs.append('-S')
+            aaptargs.append(intermediatesRes)
+        else:
+            print('intermediates res not found under build dir, better keep intermediates after gradle finish build')
     for dep in deps_list(dir):
         aaptargs.append('-S')
         aaptargs.append(resdir(dep))
