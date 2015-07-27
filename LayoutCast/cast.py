@@ -3,11 +3,12 @@
 __author__ = 'mmin18'
 
 from subprocess import Popen, PIPE, check_call
+import sys
 import os
 import re
 
-def is_gradle_project():
-    return os.path.isfile('build.gradle')
+def is_gradle_project(dir):
+    return os.path.isfile(os.path.join(dir, 'build.gradle'))
 
 def parse_properties(path):
     return os.path.isfile(path) and dict(line.strip().split('=') for line in open(path) if ('=' in line and not line.startswith('#'))) or {}
@@ -73,18 +74,18 @@ def __deps_list_gradle(list, project):
                 list.append(dep)
             break
 
-def deps_list():
-    if is_gradle_project():
+def deps_list(dir):
+    if is_gradle_project(dir):
         list = []
-        __deps_list_gradle(list, '.')
+        __deps_list_gradle(list, dir)
         return list
     else:
         list = []
-        __deps_list_eclipse(list, '.')
+        __deps_list_eclipse(list, dir)
         return list
 
-def package_name():
-    path = 'AndroidManifest.xml'
+def package_name(dir):
+    path = os.path.join(dir, 'AndroidManifest.xml')
     if os.path.isfile(path):
         with open(path, 'r') as manifestfile:
             data = manifestfile.read()
@@ -121,9 +122,9 @@ def get_android_jar(path):
                         result = os.path.join(pd, 'android.jar')
     return result
 
-def find_android_jar():
-    if os.path.isfile('local.properties'):
-        with open('local.properties', 'r') as f:
+def find_android_jar(dir):
+    if os.path.isfile(os.path.join(dir, 'local.properties')):
+        with open(os.path.join(dir, 'local.properties'), 'r') as f:
             s = f.read()
             m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
             if m:
@@ -155,12 +156,17 @@ def find_android_jar():
 
 if __name__ == "__main__":
 
-    pn = package_name()
-    android_jar = find_android_jar()
+    dir = '.'
+    if len(sys.argv) > 1:
+        dir = sys.argv[1]
+
+    pn = package_name(dir)
+
+    android_jar = find_android_jar(dir)
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
-    if is_gradle_project():
+    if is_gradle_project(dir):
         print('cast project as gradle project')
     else:
         print('cast project as eclipse project')
@@ -183,7 +189,7 @@ if __name__ == "__main__":
     cexec(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
 
     aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', 'bin/res.zip']
-    for dep in deps_list():
+    for dep in deps_list(dir):
         aaptargs.append('-S')
         aaptargs.append(os.path.join(dep, 'res'))
     aaptargs.append('-S')
