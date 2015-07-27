@@ -84,8 +84,14 @@ def deps_list(dir):
         __deps_list_eclipse(list, dir)
         return list
 
+def manifestpath(dir):
+    if os.path.isfile(os.path.join(dir, 'AndroidManifest.xml')):
+        return os.path.join(dir, 'AndroidManifest.xml')
+    if os.path.isfile(os.path.join(dir, 'src/main/AndroidManifest.xml')):
+        return os.path.join(dir, 'src/main/AndroidManifest.xml')
+
 def package_name(dir):
-    path = os.path.join(dir, 'AndroidManifest.xml')
+    path = manifestpath(dir)
     if os.path.isfile(path):
         with open(path, 'r') as manifestfile:
             data = manifestfile.read()
