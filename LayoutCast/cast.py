@@ -91,6 +91,49 @@ def package_name(dir):
             data = manifestfile.read()
             return re.findall('package=\"([\w\d_\.]+)\"', data)[0]
 
+def countResDir(dir):
+    c = 0
+    d = 0
+    if os.path.isdir(dir):
+        for subd in os.listdir(dir):
+            if subd=='drawable' or subd.startswith('drawable-'):
+                c+=1
+                d+=1
+            if subd=='layout' or subd.startswith('layout-'):
+                c+=1
+                d+=1
+            if subd=='values' or subd.startswith('values-'):
+                c+=1
+                d+=1
+            if subd=='anim' or subd.startswith('anim-'):
+                c+=1
+            if subd=='color' or subd.startswith('color-'):
+                c+=1
+            if subd=='menu' or subd.startswith('menu-'):
+                c+=1
+            if subd=='raw' or subd.startswith('raw-'):
+                c+=1
+            if subd=='xml' or subd.startswith('xml-'):
+                c+=1
+            if subd=='mipmap' or subd.startswith('mipmap-'):
+                c+=1
+            if subd=='animator' or subd.startswith('animator-'):
+                c+=1
+    if d==0:
+        return 0
+    return c
+
+def resdir(dir):
+    dir1 = os.path.join(dir, 'res')
+    dir2 = os.path.join(dir, 'src/main/res')
+    a = countResDir(dir1)
+    b = countResDir(dir2)
+    if a>0 or b>0:
+        if a>b:
+            return dir1
+        else:
+            return dir2
+
 def cexec(args, failOnError = True):
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
@@ -160,16 +203,19 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         dir = sys.argv[1]
 
-    pn = package_name(dir)
-
-    android_jar = find_android_jar(dir)
-    if not android_jar:
-        print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
-
     if is_gradle_project(dir):
         print('cast project as gradle project')
     else:
         print('cast project as eclipse project')
+
+    pn = package_name(dir)
+    if not pn:
+        print("package name or AndroidManifest.xml not found")
+        exit(1)
+
+    android_jar = find_android_jar(dir)
+    if not android_jar:
+        print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
     for i in range(0, 32):
         cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
@@ -182,20 +228,22 @@ if __name__ == "__main__":
             print('package ' + pn + ' not found')
             exit(1)
 
-    if not os.path.exists('bin/lcast/values'):
-        os.makedirs('bin/lcast/values')
+    bindir = os.path.join(dir, 'bin')
+    binlcastdir = os.path.join(bindir, 'lcast')
+    if not os.path.exists(os.path.join(binlcastdir, 'values')):
+        os.makedirs(os.path.join(binlcastdir, 'values'))
 
-    cexec(['curl', '--silent', '--output', 'bin/lcast/values/ids.xml', 'http://127.0.0.1:41128/ids.xml'])
-    cexec(['curl', '--silent', '--output', 'bin/lcast/values/public.xml', 'http://127.0.0.1:41128/public.xml'])
+    cexec(['curl', '--silent', '--output', os.path.join(binlcastdir, 'values/ids.xml'), 'http://127.0.0.1:41128/ids.xml'])
+    cexec(['curl', '--silent', '--output', os.path.join(binlcastdir, 'values/public.xml'), 'http://127.0.0.1:41128/public.xml'])
 
-    aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', 'bin/res.zip']
+    aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
     for dep in deps_list(dir):
         aaptargs.append('-S')
-        aaptargs.append(os.path.join(dep, 'res'))
+        aaptargs.append(resdir(dep))
     aaptargs.append('-S')
-    aaptargs.append('res')
+    aaptargs.append(resdir(dir))
     aaptargs.append('-S')
-    aaptargs.append('bin/lcast')
+    aaptargs.append(binlcastdir)
     aaptargs.append('-M')
     aaptargs.append('AndroidManifest.xml')
     aaptargs.append('-I')
@@ -203,5 +251,5 @@ if __name__ == "__main__":
     cexec(aaptargs)
 
     print('upload and cast..')
-    cexec(['curl', '--silent', '-T', 'bin/res.zip', 'http://127.0.0.1:41128/pushres'])
+    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:41128/pushres'])
     cexec(['curl', '--silent', 'http://127.0.0.1:41128/lcast'])
