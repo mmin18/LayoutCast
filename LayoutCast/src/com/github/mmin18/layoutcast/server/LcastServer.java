@@ -1,18 +1,25 @@
 package com.github.mmin18.layoutcast.server;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.util.HashMap;
-
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.res.Resources;
 import android.util.Log;
 
 import com.github.mmin18.layoutcast.context.OverrideContext;
 import com.github.mmin18.layoutcast.util.EmbedHttpServer;
 import com.github.mmin18.layoutcast.util.ResUtils;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * GET /packagename (get the application package name)<br>
@@ -22,7 +29,7 @@ import com.github.mmin18.layoutcast.util.ResUtils;
  * POST /reset (reset all activities)<br>
  * GET /ids.xml<br>
  * GET /public.xml<br>
- * 
+ *
  * @author mmin18
  */
 public class LcastServer extends EmbedHttpServer {
@@ -38,8 +45,8 @@ public class LcastServer extends EmbedHttpServer {
 
 	@Override
 	protected void handle(String method, String path,
-			HashMap<String, String> headers, InputStream input,
-			ResponseOutputStream response) throws Exception {
+						  HashMap<String, String> headers, InputStream input,
+						  ResponseOutputStream response) throws Exception {
 		if (path.equalsIgnoreCase("/packagename")) {
 			response.setContentTypeText();
 			response.write(context.getPackageName().getBytes("utf-8"));
@@ -97,6 +104,85 @@ public class LcastServer extends EmbedHttpServer {
 			response.write(str.getBytes());
 			return;
 		}
+		if ("/apkinfo".equalsIgnoreCase(path)) {
+			ApplicationInfo ai = app.getApplicationInfo();
+			File apkFile = new File(ai.sourceDir);
+			JSONObject result = new JSONObject();
+			result.put("size", apkFile.length());
+			result.put("lastModified", apkFile.lastModified());
+
+			FileInputStream fis = new FileInputStream(apkFile);
+			MessageDigest md5 = MessageDigest.getInstance("MD5");
+			byte[] buf = new byte[4096];
+			int l;
+			while ((l = fis.read(buf)) != -1) {
+				md5.update(buf, 0, l);
+			}
+			fis.close();
+
+			result.put("md5", byteArrayToHex(md5.digest()));
+			response.setStatusCode(200);
+			response.setContentTypeJson();
+			response.write(result.toString().getBytes());
+			return;
+		}
+		if ("/apkraw".equalsIgnoreCase(path)) {
+			ApplicationInfo ai = app.getApplicationInfo();
+			FileInputStream fis = new FileInputStream(ai.sourceDir);
+			response.setStatusCode(200);
+			response.setContentTypeBinary();
+			byte[] buf = new byte[4096];
+			int l;
+			while ((l = fis.read(buf)) != -1) {
+				response.write(buf, 0, l);
+			}
+			return;
+		}
+		if (path.startsWith("/fileinfo/")) {
+			ApplicationInfo ai = app.getApplicationInfo();
+			File apkFile = new File(ai.sourceDir);
+
+			JarFile jarFile = new JarFile(apkFile);
+			JarEntry je = jarFile.getJarEntry(path.substring("/fileinfo/".length()));
+			InputStream ins = jarFile.getInputStream(je);
+			MessageDigest md5 = MessageDigest.getInstance("MD5");
+			byte[] buf = new byte[4096];
+			int l, n = 0;
+			while ((l = ins.read(buf)) != -1) {
+				md5.update(buf, 0, l);
+				n += l;
+			}
+			ins.close();
+			jarFile.close();
+
+			JSONObject result = new JSONObject();
+			result.put("size", n);
+			result.put("time", je.getTime());
+			result.put("crc", je.getCrc());
+			result.put("md5", byteArrayToHex(md5.digest()));
+
+			response.setStatusCode(200);
+			response.setContentTypeJson();
+			response.write(result.toString().getBytes());
+			return;
+		}
+		if (path.startsWith("/fileraw/")) {
+			ApplicationInfo ai = app.getApplicationInfo();
+			File apkFile = new File(ai.sourceDir);
+
+			JarFile jarFile = new JarFile(apkFile);
+			JarEntry je = jarFile.getJarEntry(path.substring("/fileraw/".length()));
+			InputStream ins = jarFile.getInputStream(je);
+
+			response.setStatusCode(200);
+			response.setContentTypeBinary();
+			byte[] buf = new byte[4096];
+			int l;
+			while ((l = ins.read(buf)) != -1) {
+				response.write(buf, 0, l);
+			}
+			return;
+		}
 		super.handle(method, path, headers, input, response);
 	}
 
@@ -140,4 +226,12 @@ public class LcastServer extends EmbedHttpServer {
 			f.delete();
 		}
 	}
+
+	private static String byteArrayToHex(byte[] a) {
+		StringBuilder sb = new StringBuilder(a.length * 2);
+		for (byte b : a)
+			sb.append(String.format("%02x", b & 0xff));
+		return sb.toString();
+	}
+
 }
