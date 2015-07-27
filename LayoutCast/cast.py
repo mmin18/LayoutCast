@@ -129,10 +129,7 @@ def resdir(dir):
     a = countResDir(dir1)
     b = countResDir(dir2)
     if a>0 or b>0:
-        if a>b:
-            return dir1
-        else:
-            return dir2
+        return a>b and dir1 or dir2
 
 def cexec(args, failOnError = True):
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -229,7 +226,7 @@ if __name__ == "__main__":
             print('package ' + pn + ' not found')
             exit(1)
 
-    bindir = os.path.join(dir, 'bin')
+    bindir = os.path.join(dir, is_gradle and 'build' or 'bin')
     binlcastdir = os.path.join(bindir, 'lcast')
     if not os.path.exists(os.path.join(binlcastdir, 'values')):
         os.makedirs(os.path.join(binlcastdir, 'values'))
