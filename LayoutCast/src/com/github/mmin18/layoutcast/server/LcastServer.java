@@ -52,6 +52,11 @@ public class LcastServer extends EmbedHttpServer {
 			response.write(context.getPackageName().getBytes("utf-8"));
 			return;
 		}
+		if (path.equalsIgnoreCase("/appstate")) {
+			response.setContentTypeText();
+			response.write(String.valueOf(OverrideContext.getApplicationState()).getBytes("utf-8"));
+			return;
+		}
 		if (("post".equalsIgnoreCase(method) || "put".equalsIgnoreCase(method))
 				&& path.equalsIgnoreCase("/pushres")) {
 			File dir = new File(context.getCacheDir(), "lcast");
@@ -75,13 +80,13 @@ public class LcastServer extends EmbedHttpServer {
 			Resources res = ResUtils.getResources(app, latestPushFile);
 			OverrideContext.setGlobalResources(res);
 			response.setStatusCode(200);
-			response.write(String.valueOf(latestPushFile).getBytes());
+			response.write(String.valueOf(latestPushFile).getBytes("utf-8"));
 			return;
 		}
 		if ("/reset".equalsIgnoreCase(path)) {
 			OverrideContext.setGlobalResources(null);
 			response.setStatusCode(200);
-			response.write("OK".getBytes());
+			response.write("OK".getBytes("utf-8"));
 			return;
 		}
 		if ("/ids.xml".equalsIgnoreCase(path)) {
@@ -91,7 +96,7 @@ public class LcastServer extends EmbedHttpServer {
 					.buildIds(Rclazz);
 			response.setStatusCode(200);
 			response.setContentTypeText();
-			response.write(str.getBytes());
+			response.write(str.getBytes("utf-8"));
 			return;
 		}
 		if ("/public.xml".equalsIgnoreCase(path)) {
@@ -101,7 +106,7 @@ public class LcastServer extends EmbedHttpServer {
 					.buildPublic(Rclazz);
 			response.setStatusCode(200);
 			response.setContentTypeText();
-			response.write(str.getBytes());
+			response.write(str.getBytes("utf-8"));
 			return;
 		}
 		if ("/apkinfo".equalsIgnoreCase(path)) {
@@ -123,7 +128,7 @@ public class LcastServer extends EmbedHttpServer {
 			result.put("md5", byteArrayToHex(md5.digest()));
 			response.setStatusCode(200);
 			response.setContentTypeJson();
-			response.write(result.toString().getBytes());
+			response.write(result.toString().getBytes("utf-8"));
 			return;
 		}
 		if ("/apkraw".equalsIgnoreCase(path)) {
@@ -163,7 +168,7 @@ public class LcastServer extends EmbedHttpServer {
 
 			response.setStatusCode(200);
 			response.setContentTypeJson();
-			response.write(result.toString().getBytes());
+			response.write(result.toString().getBytes("utf-8"));
 			return;
 		}
 		if (path.startsWith("/fileraw/")) {

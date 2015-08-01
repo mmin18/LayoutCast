@@ -1,10 +1,5 @@
 package com.github.mmin18.layoutcast.context;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Map.Entry;
-import java.util.WeakHashMap;
-
 import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
@@ -14,6 +9,11 @@ import android.content.res.Resources;
 import android.content.res.Resources.Theme;
 import android.os.Bundle;
 import android.view.ContextThemeWrapper;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Map.Entry;
+import java.util.WeakHashMap;
 
 public class OverrideContext extends ContextWrapper {
 
@@ -62,8 +62,7 @@ public class OverrideContext extends ContextWrapper {
 	}
 
 	/**
-	 * @param res
-	 *            set null to reset original resources
+	 * @param res set null to reset original resources
 	 */
 	public static OverrideContext override(ContextWrapper orig, Resources res)
 			throws Exception {
@@ -128,6 +127,32 @@ public class OverrideContext extends ContextWrapper {
 		return r;
 	}
 
+	/**
+	 * @return 0: no activities<br>
+	 * 1: activities has been paused<br>
+	 * 2: activities is visible
+	 */
+	public static int getApplicationState() {
+		int createdCount = 0;
+		int resumedCount = 0;
+		for (Entry<Activity, Integer> e : activities.entrySet()) {
+			int i = e.getValue().intValue();
+			if (i >= ACTIVITY_CREATED) {
+				createdCount++;
+			}
+			if (i >= ACTIVITY_RESUMED) {
+				resumedCount++;
+			}
+		}
+		if (resumedCount > 0) {
+			return 2;
+		}
+		if (createdCount > 0) {
+			return 1;
+		}
+		return 0;
+	}
+
 	public static int getActivityState(Activity a) {
 		Integer i = activities.get(a);
 		if (i == null) {
@@ -150,7 +175,7 @@ public class OverrideContext extends ContextWrapper {
 
 		@Override
 		public void onActivitySaveInstanceState(Activity activity,
-				Bundle outState) {
+												Bundle outState) {
 		}
 
 		@Override
@@ -172,7 +197,7 @@ public class OverrideContext extends ContextWrapper {
 
 		@Override
 		public void onActivityCreated(Activity activity,
-				Bundle savedInstanceState) {
+									  Bundle savedInstanceState) {
 			activities.put(activity, ACTIVITY_CREATED);
 		}
 	};
