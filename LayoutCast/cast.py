@@ -33,6 +33,10 @@ def balanced_braces(arg):
             chars.append(c)
     return ''
 
+def remove_comments(str):
+    # remove comments in groovy
+    return re.sub(r'''(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*)''', '', str)
+
 def __deps_list_eclipse(list, project):
     prop = parse_properties(os.path.join(project, 'project.properties'))
     for i in range(1,100):
@@ -44,10 +48,10 @@ def __deps_list_eclipse(list, project):
                 list.append(absdep)
 
 def __deps_list_gradle(list, project):
+    str = ''
     with open(os.path.join(project, 'build.gradle'), 'r') as f:
         str = f.read()
-    # remove comments in groovy
-    str = re.sub(r'''(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*)''', '', str)
+    str = remove_comments(str)
     ideps = []
     # for depends in re.findall(r'dependencies\s*\{.*?\}', str, re.DOTALL | re.MULTILINE):
     for m in re.finditer(r'dependencies\s*\{', str):
@@ -92,7 +96,7 @@ def manifestpath(dir):
 
 def package_name(dir):
     path = manifestpath(dir)
-    if os.path.isfile(path):
+    if path and os.path.isfile(path):
         with open(path, 'r') as manifestfile:
             data = manifestfile.read()
             return re.findall('package=\"([\w\d_\.]+)\"', data)[0]
@@ -136,6 +140,44 @@ def resdir(dir):
     b = countResDir(dir2)
     if a>0 or b>0:
         return a>b and dir1 or dir2
+
+def is_launchable_project(dir):
+    if is_gradle_project(dir):
+        with open(os.path.join(dir, 'build.gradle'), 'r') as buildfile:
+            data = buildfile.read()
+            data = remove_comments(data)
+            if re.findall(r'''apply\s+plugin:\s*['"]com.android.application['"]''', data, re.MULTILINE):
+                return True
+    elif os.path.isfile(os.path.join(dir, 'project.properties')):
+        with open(os.path.join(dir, 'project.properties'), 'r') as propfile:
+            data = propfile.read()
+            if re.findall(r'''^\s*target\s*=.*$''', data, re.MULTILINE) and not re.findall(r'''^\s*android.library\s*=\s*true\s*$''', data, re.MULTILINE):
+                return True
+    return False
+
+def __append_project(list, dir, depth):
+    if package_name(dir):
+        list.append(dir)
+    elif depth > 0:
+        for cname in os.listdir(dir):
+            cdir = os.path.join(dir, cname)
+            if os.path.isdir(cdir):
+                __append_project(list, cdir, depth-1)
+
+def list_projects(dir):
+    list = []
+    if os.path.isfile(os.path.join(dir, 'settings.gradle')):
+        with open(os.path.join(dir, 'settings.gradle'), 'r') as f:
+            data = f.read()
+            for line in re.findall(r'''include\s*(.+)''', data):
+                for proj in re.findall(r'''[\s,]+['"](.*?)['"]''', ','+line):
+                    dproj = (proj.startswith(':') and proj[1:] or proj).replace(':', '/')
+                    cdir = os.path.join(dir, dproj)
+                    if package_name(cdir):
+                        list.append(cdir)
+    else:
+        __append_project(list, dir, 2)
+    return list
 
 def cexec(args, failOnError = True):
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -206,39 +248,59 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         dir = sys.argv[1]
 
+    projlist = [i for i in list_projects(dir) if is_launchable_project(i)]
+
+    if not projlist:
+        print('no valid android project found in '+os.path.abspath(dir))
+        exit(1)
+
+    pnlist = [package_name(i) for i in projlist]
+    portlist = [0 for i in pnlist]
+    stlist = [-1 for i in pnlist]
+
+    for i in range(0, 32):
+        cexec(['adb', 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
+        output = cexec(['curl', 'http://127.0.0.1:%d/packagename'%(41128+i)], failOnError = False).strip()
+        if output and output in pnlist:
+            ii=pnlist.index(output)
+            portlist[ii] = (41128+i)
+            output = cexec(['curl', 'http://127.0.0.1:%d/appstate'%(41128+i)], failOnError=False).strip()
+            stlist[ii] = output and int(output) or -1
+
+    maxst = max(stlist)
+    port=41128
+    if maxst == -1:
+        print('package %s not found, make sure your project is properly setup and running'%pnlist)
+        exit(1)
+    elif stlist.count(maxst) > 1:
+        print('multiple packages %s running'%pnlist + (maxst==2 and '' or ', keep one of your application visible and cast again'))
+        exit(1)
+    else:
+        i = stlist.index(maxst)
+        port = portlist[i]
+        dir = projlist[i]
+        packagename = pnlist[i]
+        for i in range(0, 32):
+            if (41128+i) != port:
+                cexec(['adb', 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+
     is_gradle = is_gradle_project(dir)
     if is_gradle:
-        print('cast project as gradle project')
+        print('cast '+packagename+' as gradle project')
     else:
-        print('cast project as eclipse project')
-
-    pn = package_name(dir)
-    if not pn:
-        print("package name or AndroidManifest.xml not found")
-        exit(1)
+        print('cast '+packagename+' as eclipse project')
 
     android_jar = find_android_jar(dir)
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
-
-    for i in range(0, 32):
-        cexec(['adb', 'forward', 'tcp:41128', 'tcp:%d'%(41128+i)])
-        output = cexec(['curl', 'http://127.0.0.1:41128/packagename'], failOnError = False).strip()
-        if output == pn:
-            print('found package '+pn+' at port %d'%(41128+i))
-            break
-        if i == 31:
-            cexec(['adb', 'forward', '--remove', 'tcp:41128'], failOnError = False)
-            print('package ' + pn + ' not found')
-            exit(1)
 
     bindir = os.path.join(dir, is_gradle and 'build/lcast' or 'bin/lcast')
     binresdir = os.path.join(bindir, 'res')
     if not os.path.exists(os.path.join(binresdir, 'values')):
         os.makedirs(os.path.join(binresdir, 'values'))
 
-    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:41128/ids.xml'])
-    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:41128/public.xml'])
+    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:%d/ids.xml'%port])
+    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
 
     aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
     if is_gradle:
@@ -256,11 +318,11 @@ if __name__ == "__main__":
     aaptargs.append('-S')
     aaptargs.append(binresdir)
     aaptargs.append('-M')
-    aaptargs.append('AndroidManifest.xml')
+    aaptargs.append(os.path.join(dir, 'AndroidManifest.xml'))
     aaptargs.append('-I')
     aaptargs.append(android_jar)
     cexec(aaptargs)
 
     print('upload and cast..')
-    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:41128/pushres'])
-    cexec(['curl', '--silent', 'http://127.0.0.1:41128/lcast'])
+    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%41128])
+    cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%41128])
