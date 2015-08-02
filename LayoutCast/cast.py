@@ -75,7 +75,8 @@ def __deps_list_gradle(list, project):
         if b:
             for dep in deps:
                 __deps_list_gradle(list, dep)
-                list.append(dep)
+                if not dep in list:
+                    list.append(dep)
             break
 
 def deps_list(dir):
