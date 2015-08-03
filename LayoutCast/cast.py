@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
+__version__ = '1.50803'
 
 from subprocess import Popen, PIPE, check_call
 import sys
