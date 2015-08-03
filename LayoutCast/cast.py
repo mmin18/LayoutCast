@@ -266,9 +266,10 @@ if __name__ == "__main__":
         output = cexec(['curl', 'http://127.0.0.1:%d/packagename'%(41128+i)], failOnError = False).strip()
         if output and output in pnlist:
             ii=pnlist.index(output)
-            portlist[ii] = (41128+i)
             output = cexec(['curl', 'http://127.0.0.1:%d/appstate'%(41128+i)], failOnError=False).strip()
-            stlist[ii] = output and int(output) or -1
+            if output and int(output) > stlist[ii]:
+                portlist[ii] = (41128+i)
+                stlist[ii] = int(output)
 
     maxst = max(stlist)
     port=41128
@@ -321,7 +322,7 @@ if __name__ == "__main__":
     aaptargs.append('-S')
     aaptargs.append(binresdir)
     aaptargs.append('-M')
-    aaptargs.append(os.path.join(dir, 'AndroidManifest.xml'))
+    aaptargs.append(manifestpath(dir))
     aaptargs.append('-I')
     aaptargs.append(android_jar)
     cexec(aaptargs)
