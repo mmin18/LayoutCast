@@ -161,6 +161,8 @@ def __append_project(list, dir, depth):
         list.append(dir)
     elif depth > 0:
         for cname in os.listdir(dir):
+            if cname=='build' or cname=='bin':
+                continue
             cdir = os.path.join(dir, cname)
             if os.path.isdir(cdir):
                 __append_project(list, cdir, depth-1)
