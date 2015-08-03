@@ -284,7 +284,7 @@ if __name__ == "__main__":
     portlist = [0 for i in pnlist]
     stlist = [-1 for i in pnlist]
 
-    for i in range(0, 32):
+    for i in range(0, 10):
         cexec(['adb', 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
         output = cexec(['curl', 'http://127.0.0.1:%d/packagename'%(41128+i)], failOnError = False).strip()
         if output and output in pnlist:
@@ -295,27 +295,27 @@ if __name__ == "__main__":
                 stlist[ii] = int(output)
 
     maxst = max(stlist)
-    port=41128
+    port=0
     if maxst == -1:
-        print('package %s not found, make sure your project is properly setup and running'%pnlist)
-        exit(1)
+        print('package %s not found, make sure your project is properly setup and running'%(len(pnlist)==1 and pnlist[0] or pnlist))
     elif stlist.count(maxst) > 1:
-        print('multiple packages %s running'%pnlist + (maxst==2 and '' or ', keep one of your application visible and cast again'))
-        exit(1)
+        print('multiple packages %s running%s'%(pnlist, (maxst==2 and '.' or ', keep one of your application visible and cast again')))
     else:
         i = stlist.index(maxst)
         port = portlist[i]
         dir = projlist[i]
         packagename = pnlist[i]
-        for i in range(0, 32):
-            if (41128+i) != port:
-                cexec(['adb', 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+    for i in range(0, 10):
+        if (41128+i) != port:
+            cexec(['adb', 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+    if port==0:
+        exit(1)
 
     is_gradle = is_gradle_project(dir)
     if is_gradle:
-        print('cast '+packagename+' as gradle project')
+        print('cast %s:%d as gradle project'%(packagename, port))
     else:
-        print('cast '+packagename+' as eclipse project')
+        print('cast %s:%d as eclipse project'%(packagename, port))
 
     android_jar = find_android_jar(dir)
     if not android_jar:
