@@ -182,6 +182,29 @@ def list_projects(dir):
         __append_project(list, dir, 2)
     return list
 
+def list_aar_projects(dir, deps):
+    pnlist = [package_name(i) for i in deps]
+    pnlist.append(package_name(dir))
+    list1 = []
+    if os.path.isdir(os.path.join(dir, 'build/intermediates/incremental/mergeResources')):
+        for dirpath, dirnames, files in os.walk(os.path.join(dir, 'build/intermediates/incremental/mergeResources')):
+            if '/androidTest/' in dirpath:
+                continue
+            for fn in files:
+                if fn=='merger.xml':
+                    with open(os.path.join(dirpath, fn), 'r') as f:
+                        data = f.read()
+                        for ppath in re.findall(r'''path="([^"]*?/res)"''', data):
+                            if not ppath in list1:
+                                list1.append(ppath)
+    list2 = []
+    for ppath in list1:
+        parpath = os.path.abspath(os.path.join(ppath, os.pardir))
+        pn = package_name(parpath)
+        if pn and not pn in pnlist:
+            list2.append(ppath)
+    return list2
+
 def cexec(args, failOnError = True):
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
@@ -307,14 +330,12 @@ if __name__ == "__main__":
     cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
 
     aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
+    deps = deps_list(dir)
     if is_gradle:
-        intermediatesRes = os.path.join(dir, 'build/intermediates/res/debug')
-        if countResDir(intermediatesRes) > 1:
+        for dep in list_aar_projects(dir, deps):
             aaptargs.append('-S')
-            aaptargs.append(intermediatesRes)
-        else:
-            print('intermediates res not found under build dir, better keep intermediates after gradle finish build')
-    for dep in deps_list(dir):
+            aaptargs.append(dep)
+    for dep in deps:
         aaptargs.append('-S')
         aaptargs.append(resdir(dep))
     aaptargs.append('-S')
@@ -328,5 +349,5 @@ if __name__ == "__main__":
     cexec(aaptargs)
 
     print('upload and cast..')
-    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%41128])
-    cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%41128])
+    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
+    cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
