@@ -351,3 +351,5 @@ if __name__ == "__main__":
     print('upload and cast..')
     cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
     cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
+
+    cexec(['adb', 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
