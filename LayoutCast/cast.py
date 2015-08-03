@@ -299,7 +299,8 @@ if __name__ == "__main__":
     if maxst == -1:
         print('package %s not found, make sure your project is properly setup and running'%(len(pnlist)==1 and pnlist[0] or pnlist))
     elif stlist.count(maxst) > 1:
-        print('multiple packages %s running%s'%(pnlist, (maxst==2 and '.' or ', keep one of your application visible and cast again')))
+        alist = [pnlist[i] for i in range(0, len(pnlist)) if stlist[i] >= 0]
+        print('multiple packages %s running%s'%(alist, (maxst==2 and '.' or ', keep one of your application visible and cast again')))
     else:
         i = stlist.index(maxst)
         port = portlist[i]
