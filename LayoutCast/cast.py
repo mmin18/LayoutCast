@@ -9,6 +9,7 @@ import argparse
 import sys
 import os
 import re
+import time
 
 def is_gradle_project(dir):
     return os.path.isfile(os.path.join(dir, 'build.gradle'))
@@ -287,6 +288,8 @@ if __name__ == "__main__":
     dir = '.'
     sdkdir = None
 
+    starttime = time.time()
+
     if len(sys.argv) > 1:
         parser = argparse.ArgumentParser()
         parser.add_argument('--sdk', help='specify Android SDK path')
@@ -386,8 +389,10 @@ if __name__ == "__main__":
     aaptargs.append(android_jar)
     cexec(aaptargs)
 
-    print('upload and cast..')
     cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
     cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
 
     cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
+
+    elapsetime = time.time() - starttime
+    print('finished in %dms'%(elapsetime*1000))
