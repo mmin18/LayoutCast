@@ -4,6 +4,7 @@ __author__ = 'mmin18'
 __version__ = '1.50803'
 
 from subprocess import Popen, PIPE, check_call
+from distutils.version import LooseVersion
 import sys
 import os
 import re
@@ -237,37 +238,52 @@ def get_android_jar(path):
                         result = os.path.join(pd, 'android.jar')
     return result
 
-def find_android_jar(dir):
+def get_adb(path):
+    if os.path.isdir(path) and os.path.isfile(os.path.join(path, 'platform-tools/adb')):
+        return os.path.join(path, 'platform-tools/adb')
+
+def get_aapt(path):
+    if os.path.isdir(path) and os.path.isdir(os.path.join(path, 'build-tools')):
+        btpath = os.path.join(path, 'build-tools')
+        minv = LooseVersion('0')
+        minp = None
+        for pn in os.listdir(btpath):
+            if os.path.isfile(os.path.join(btpath, pn, 'aapt')):
+                if LooseVersion(pn) > minv:
+                    minp = os.path.join(btpath, pn, 'aapt')
+        return minp
+
+def get_android_sdk(dir, condf = get_android_jar):
+    path = os.getenv('__ANDROID_SDK')
+    if path and os.path.isdir(path) and condf(path):
+        return path
+
     if os.path.isfile(os.path.join(dir, 'local.properties')):
         with open(os.path.join(dir, 'local.properties'), 'r') as f:
             s = f.read()
             m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
-            if m:
-                r = get_android_jar(m.group(1))
-                if r:
-                    return r
+            if m and os.path.isdir(m.group(1)) and condf(m.group(1)):
+                return m.group(1)
 
-    if os.getenv('ANDROID_HOME'):
-        r = get_android_jar(os.getenv('ANDROID_HOME'))
-        if r:
-            return r
+    path = os.getenv('ANDROID_HOME')
+    if path and os.path.isdir(path) and condf(path):
+        return path
 
-    if os.getenv('ANDROID_SDK'):
-        r = get_android_jar(os.getenv('ANDROID_SDK'))
-        if r:
-            return r
+    path = os.getenv('ANDROID_SDK')
+    if path and os.path.isdir(path) and condf(path):
+        return path
 
-    r = get_android_jar(os.path.expanduser('~/Library/Android/sdk'))
-    if r:
-        return r
+    path = os.path.expanduser('~/Library/Android/sdk')
+    if path and os.path.isdir(path) and condf(path):
+        return path
 
-    r = get_android_jar('/Applications/android-sdk-mac_86')
-    if r:
-        return r
+    path = '/Applications/android-sdk-mac_86'
+    if path and os.path.isdir(path) and condf(path):
+        return path
 
-    r = get_android_jar('/android-sdk-mac_86')
-    if r:
-        return r
+    path = '/android-sdk-mac_86'
+    if path and os.path.isdir(path) and condf(path):
+        return path
 
 if __name__ == "__main__":
 
@@ -285,8 +301,17 @@ if __name__ == "__main__":
     portlist = [0 for i in pnlist]
     stlist = [-1 for i in pnlist]
 
+    sdkdir = get_android_sdk(dir)
+    if not sdkdir:
+        print('android sdk not found, specify in local.properties or export ANDROID_HOME')
+        exit(1)
+
+    adbpath = get_adb(sdkdir)
+    if not adbpath:
+        print('adb not found in %s/platform-tools'%sdkdir)
+        exit(1)
     for i in range(0, 10):
-        cexec(['adb', 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
+        cexec([adbpath, 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
         output = cexec(['curl', 'http://127.0.0.1:%d/packagename'%(41128+i)], failOnError = False).strip()
         if output and output in pnlist:
             ii=pnlist.index(output)
@@ -309,7 +334,7 @@ if __name__ == "__main__":
         packagename = pnlist[i]
     for i in range(0, 10):
         if (41128+i) != port:
-            cexec(['adb', 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
     if port==0:
         exit(1)
 
@@ -319,7 +344,7 @@ if __name__ == "__main__":
     else:
         print('cast %s:%d as eclipse project'%(packagename, port))
 
-    android_jar = find_android_jar(dir)
+    android_jar = get_android_jar(sdkdir)
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
@@ -331,7 +356,11 @@ if __name__ == "__main__":
     cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:%d/ids.xml'%port])
     cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
 
-    aaptargs = ['aapt', 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
+    aaptpath = get_aapt(sdkdir)
+    if not aaptpath:
+        print('aapt not found in %s/build-tools'%sdkdir)
+        exit(1)
+    aaptargs = [aaptpath, 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
     deps = deps_list(dir)
     if is_gradle:
         for dep in list_aar_projects(dir, deps):
@@ -354,4 +383,4 @@ if __name__ == "__main__":
     cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
     cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
 
-    cexec(['adb', 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
+    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
