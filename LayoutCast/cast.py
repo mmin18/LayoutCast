@@ -5,6 +5,7 @@ __version__ = '1.50803'
 
 from subprocess import Popen, PIPE, check_call
 from distutils.version import LooseVersion
+import argparse
 import sys
 import os
 import re
@@ -254,10 +255,6 @@ def get_aapt(path):
         return minp
 
 def get_android_sdk(dir, condf = get_android_jar):
-    path = os.getenv('__ANDROID_SDK')
-    if path and os.path.isdir(path) and condf(path):
-        return path
-
     if os.path.isfile(os.path.join(dir, 'local.properties')):
         with open(os.path.join(dir, 'local.properties'), 'r') as f:
             s = f.read()
@@ -288,8 +285,17 @@ def get_android_sdk(dir, condf = get_android_jar):
 if __name__ == "__main__":
 
     dir = '.'
+    sdkdir = None
+
     if len(sys.argv) > 1:
-        dir = sys.argv[1]
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--sdk', help='specify Android SDK path')
+        parser.add_argument('project')
+        args = parser.parse_args()
+        if args.sdk:
+            sdkdir = args.sdk
+        if args.project:
+            dir = args.project
 
     projlist = [i for i in list_projects(dir) if is_launchable_project(i)]
 
@@ -301,10 +307,11 @@ if __name__ == "__main__":
     portlist = [0 for i in pnlist]
     stlist = [-1 for i in pnlist]
 
-    sdkdir = get_android_sdk(dir)
     if not sdkdir:
-        print('android sdk not found, specify in local.properties or export ANDROID_HOME')
-        exit(1)
+        sdkdir = get_android_sdk(dir)
+        if not sdkdir:
+            print('android sdk not found, specify in local.properties or export ANDROID_HOME')
+            exit(1)
 
     adbpath = get_adb(sdkdir)
     if not adbpath:
