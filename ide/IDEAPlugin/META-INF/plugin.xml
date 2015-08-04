@@ -1,0 +1,50 @@
+<idea-plugin version="2">
+  <id>com.github.mmin18.layoutcast.ide</id>
+  <name>LayoutCast IDE Support</name>
+  <version>1.0</version>
+  <vendor email="mmin18@gmail.com" url="http://github.com/mmin18/LayoutCast">mmin18</vendor>
+
+  <description><![CDATA[
+      IntelliJ of AndroidStudio plugin for LayoutCast<br>
+      http://github.com/mmin18
+    ]]></description>
+
+  <change-notes><![CDATA[
+    ]]>
+  </change-notes>
+  <!--<depends>org.jetbrains.android</depends>-->
+
+  <!-- please see https://confluence.jetbrains.com/display/IDEADEV/Build+Number+Ranges for description -->
+  <idea-version since-build="131"/>
+
+  <!-- please see https://confluence.jetbrains.com/display/IDEADEV/Plugin+Compatibility+with+IntelliJ+Platform+Products
+       on how to target different products -->
+  <!-- uncomment to enable plugin in all products
+  <depends>com.intellij.modules.lang</depends>
+  -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+  </extensions>
+
+  <application-components>
+    <!-- Add your application components here -->
+    <component>
+      <implementation-class>com.github.mmin18.layoutcast.ide.StartupComponent</implementation-class>
+    </component>
+  </application-components>
+
+  <project-components>
+    <!-- Add your project components here -->
+  </project-components>
+
+  <actions>
+    <!-- Add your actions here -->
+    <action id="CastAction" class="com.github.mmin18.layoutcast.ide.CastAction"
+            text="Layout Cast" description="" icon="/lcast.png">
+      <add-to-group group-id="ToolsMenu" anchor="first"/>
+      <add-to-group group-id="ToolbarRunGroup" anchor="after" relative-to-action="RunnerActions"/>
+    </action>
+  </actions>
+
+</idea-plugin>
