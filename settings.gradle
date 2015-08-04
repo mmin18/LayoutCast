@@ -1,1 +1,2 @@
-include ':LayoutCast', ':sample:LayoutLibrary', ':sample:LayoutTest'
+include ':LayoutCast'
+include ':sample-androidstudio:CastGradleTest', ':sample-androidstudio:CastLibrary'
