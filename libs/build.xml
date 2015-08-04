@@ -1,0 +1,44 @@
+<project name="Common" default="help" basedir=".">
+
+	<property name="proj" location="../LayoutCast" />
+
+	<property file="../local.properties" />
+	<property file="../LayoutCast/project.properties" />
+
+	<echo>${sdk.dir}/platforms/${target}/android.jar</echo>
+
+	<target name="compile">
+		<mkdir dir="bin" />
+		<javac destdir="bin" encoding="utf-8" source="1.5" target="1.5">
+			<classpath>
+				<pathelement path="${sdk.dir}/platforms/${target}/android.jar" />
+			</classpath>
+			<src path="${proj}/src" />
+			<exclude name="*.java" />
+		</javac>
+
+		<jar destfile="lcast.jar">
+			<fileset dir="bin" includes="**/*.class" />
+			<fileset dir="${proj}/src" includes="**/*.java" />
+		</jar>
+
+		<delete dir="bin" />
+		
+		<tstamp>
+			<format property="TODAY" pattern="yyyy-MM-dd" locale="en,UK"/>
+		</tstamp>
+		<echo file="build.txt" append="false">Last build ${TODAY}</echo>
+	</target>
+
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+
+    <target name="help">
+        <!-- displays starts at col 13
+              |13                                                              80| -->
+        <echo>   help:      Displays this help.</echo>
+        <echo>   clean:     Remove tmp file and all build results</echo>
+        <echo>   compile:   Build lcast.jar with java source code</echo>
+    </target>
+</project>
