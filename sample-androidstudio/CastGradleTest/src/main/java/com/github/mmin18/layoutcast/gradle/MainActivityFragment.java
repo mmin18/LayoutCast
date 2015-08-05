@@ -1,11 +1,13 @@
 package com.github.mmin18.layoutcast.gradle;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
 
@@ -20,17 +22,17 @@ public class MainActivityFragment extends ListFragment {
 
 	public static String[] IMAGES = {
 			"http://www.tesla.cn/sites/default/files/images/homepage/home_hero_70.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/section-initial-original-april.jpg?201502052330%22%20class=%22section-hero%20hide-on-mobile",
-			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single.jpg?201502052330",
-			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single-vertical.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/exterior/hero-01.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/door-handles-black.jpg?2",
-			"http://www.tesla.cn/sites/default/files/images/model-s/charging-europe.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/interior/hero-01-LHD.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/glass-pano-roof.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/obeche-matte-yacht-floor.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-s/interior-design-detail-LHD.jpg?201502052330",
-			"http://www.tesla.cn/sites/default/files/images/model-x/teaser@2x.jpg?2",
+			"http://www.tesla.cn/sites/default/files/images/model-s/section-initial-original-april.jpg",
+			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single.jpg",
+			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single-vertical.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/exterior/hero-01.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/door-handles-black.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/charging-europe.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/interior/hero-01-LHD.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/glass-pano-roof.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/obeche-matte-yacht-floor.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-s/interior-design-detail-LHD.jpg",
+			"http://www.tesla.cn/sites/default/files/images/model-x/teaser@2x.jpg",
 			"http://www.tesla.cn/sites/default/files/images/supercharger/supercharger-hero@2x.jpg"
 	};
 
@@ -53,6 +55,15 @@ public class MainActivityFragment extends ListFragment {
 	public void onViewCreated(View view, Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
 		setListAdapter(new Adapter());
+		getListView().setOnItemClickListener(new AdapterView.OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				Uri uri = Uri.parse(IMAGES[position]);
+				Intent i = new Intent(getActivity(), DetailActivity.class);
+				i.setData(uri);
+				startActivity(i);
+			}
+		});
 	}
 
 	private class Adapter extends BaseAdapter {
