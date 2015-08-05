@@ -1,10 +1,10 @@
 # LayoutCast
 
-Android SDK sucks. It takes forever to build and run the code on your device/emulator, even you only changes single line of code. Especially when you are tuning your UI design, it takes more time waiting than coding.
+Android SDK sucks. It takes forever to build and run the code on your device/emulator. Especially when you are tuning your UI design, usually it only changes single line of code, but it takes forever waiting the application to run.
 
 LayoutCast is a little tool to help with that, it will cast every changes in your /res (including library project) to your phone within 5 sec, and does not restart the hold application.
 
-![GIF](intro.gif)
+![GIF](images/intro.gif)
 
 Youtube demo video: <https://youtu.be/1VmfPQmV8mc>
 
@@ -12,7 +12,7 @@ Youtube demo video: <https://youtu.be/1VmfPQmV8mc>
 
 ## Features
 
-- Fast cast res changes, usually less than 5 sec.
+- Fast cast resources changes, usually less than 5 sec.
 
 - Cast layout, drawable, values (basically res/**) to the running application without restart the hole application.
 
@@ -20,7 +20,7 @@ Youtube demo video: <https://youtu.be/1VmfPQmV8mc>
 
 - Provide a AndroidStudio plugin to click and cast.
 
-- Easy to setup, only add two lines of code.
+- Easy to setup, only add few lines of code.
 
 NOTICE: LayoutCast only support Mac now.
 
@@ -32,7 +32,7 @@ NOTICE: LayoutCast only support Mac now.
 
 Install the IntelliJ plugin in your AndroidStudio by downloading <https://github.com/mmin18/LayoutCast/raw/master/ide/IDEAPlugin/IDEAPlugin.jar> and install plugin in `Preferences` > `Plugins` > `Install plugin from disk...`
 
-After restart, you should find a button at right of the run section: ![TOOLBAR](sc_toolbar.png)
+After restart, you should find a button at right of the run section: ![TOOLBAR](images/sc_toolbar.png)
 
 ### Dependency and startup changes
 
@@ -43,7 +43,7 @@ Next you need to setup your project. Add the dependency in your build.gradle:
 		...
 	}
 
-Start LayoutCast when your application onCreate(). And since LayoutCast is only necessary when you develop, you should always check if the BuildConfig.DEBUG == true.
+Add the following code in your application onCreate(). And since LayoutCast is only necessary when you develop, you should always check if the BuildConfig.DEBUG == true.
 
 	public class MyApplication extends Application {
 		@Override
@@ -62,31 +62,39 @@ Also don't forget to check if this Application class is registered in AndroidMan
         android:name=".MyApplication"
 		...
 
-Also make sure you have the network permission in your AndroidManifest.xml:
+And make sure you have the network permission in your AndroidManifest.xml:
 
     <uses-permission android:name="android.permission.INTERNET" />
 
 ### Run and cast
 
-You need to run the application first, and after that you can cast the resources changes directly to your running application through ADB.
+You need to run the application first, then make some changes in /res folder.
+
+Click the LayoutCast button in toolbar (on the right of Run button) or go to menu `Tools`> `Layout Cast`.
+
+It will show the result above status bar:
+
+![SUCCESS](images/sc_success.png)
+
+![FAIL](images/sc_fail.png)
 
 ## Get started for Eclipse
 
 ### Prepare the cast script
 
-I didn't write the Eclipse plugin yet, so if you need to use it on a eclipse project, you need to use the command line.
+I haven't write the Eclipse plugin yet, so if you need to use it on a eclipse project, you need to use the command line.
 
-It's a python 2.7 script which you can get here <https://raw.githubusercontent.com/mmin18/LayoutCast/master/cast.py>. You can put it in /usr/local or project's folder or anywhere you like.
+It's a python 2.7 script which you can get here <https://raw.githubusercontent.com/mmin18/LayoutCast/master/cast.py>. You can put it in project root dir or anywhere you like.
 
 ### Dependency and startup changes
 
-Since we do not build with gradle, you need to manually download the library <https://github.com/mmin18/LayoutCast/raw/master/libs/lcast.jar> to your /libs folder.
+Since it does not build with gradle, you need to manually download the library <https://github.com/mmin18/LayoutCast/raw/master/libs/lcast.jar> to your /libs folder.
 
 Everything else is the same as AndroidStudio.
 
 ### Run and cast
 
-Run the application first, and open terminal and execute `python cast.py` under your project's folder:
+Run the application first, and open terminal and execute **python cast.py** under your project's folder:
 
 	cd <project path>
 	python cast.py
