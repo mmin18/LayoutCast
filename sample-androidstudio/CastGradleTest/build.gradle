@@ -27,7 +27,7 @@ android {
 
 dependencies {
     compile 'com.facebook.fresco:fresco:0.6.0+'
-    compile project(':LayoutCast')
+    compile project(':library')
     compile project(':sample-androidstudio:CastLibrary')
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 	compile 'com.android.support:appcompat-v7:22.2.0'

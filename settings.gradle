@@ -1,2 +1,2 @@
-include ':LayoutCast'
+include ':library'
 include ':sample-androidstudio:CastGradleTest', ':sample-androidstudio:CastLibrary'

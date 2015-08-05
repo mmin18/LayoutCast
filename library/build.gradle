@@ -53,3 +53,30 @@ android {
         release.setRoot('build-types/release')
     }
 }
+
+ext {
+    bintrayRepo = 'mvn'
+    bintrayName = 'layoutcast'
+
+    publishedGroupId = 'com.github.mmin18.layoutcast'
+    libraryName = 'LayoutCast'
+    artifact = 'library'
+
+    libraryDescription = 'Android develop tool to help cast layout changes to the running application through ADB.'
+
+    siteUrl = 'https://github.com/mmin18/LayoutCast'
+    gitUrl = 'https://github.com/mmin18/LayoutCast.git'
+
+    libraryVersion = '1.0.1'
+
+    developerId = 'mmin18'
+    developerName = 'mmin18'
+    developerEmail = 'mmin18@gmail.com'
+
+    licenseName = 'MIT'
+    licenseUrl = 'http://opensource.org/licenses/MIT'
+    allLicenses = ["MIT"]
+}
+
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
