@@ -336,6 +336,34 @@ def get_android_sdk(dir, condf = get_android_jar):
     if path and os.path.isdir(path) and condf(path):
         return path
 
+def search_path(dir, filename):
+    dir0 = filename
+    if '/' in filename:
+        dir0 = filename[0:filename.index('/')]
+    list = []
+    for dirpath, dirnames, files in os.walk(dir):
+        if '/androidTest/' in dirpath or '/.' in dirpath:
+            continue
+        if dir0 in dirnames and os.path.isfile(os.path.join(dirpath, filename)):
+            list.append(dirpath)
+    if len(list) == 1:
+        return list[0]
+    elif len(list) > 1:
+        maxt = 0
+        maxd = None
+        for ddir in list:
+            lastModified = 0
+            for dirpath, dirnames, files in os.walk(dir):
+                for fn in files:
+                    if fn.endswith('.class'):
+                        lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+            if lastModified > maxt:
+                maxt = lastModified
+                maxd = ddir
+        return maxd
+    else:
+        return os.path.join(dir, 'debug')
+
 if __name__ == "__main__":
 
     dir = '.'
@@ -491,6 +519,8 @@ if __name__ == "__main__":
         if vmversion.startswith('1'):
             print('cast dex to dalvik vm is not supported, you need ART in Android 5.0')
         elif vmversion.startswith('2'):
+            launcher = cexec(['curl', 'http://127.0.0.1:%d/launcher'%port])
+
             classpath = [android_jar]
             for dep in adeps:
                 dlib = libdir(dep)
@@ -506,8 +536,9 @@ if __name__ == "__main__":
                     for fn in files:
                         if fn=='classes.jar':
                             classpath.append(os.path.join(dirpath, fn))
-                # TODO:
-                classpath.append(os.path.join(dir, 'build', 'intermediates', 'classes', 'debug'))
+                # R.class
+                classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', '/')+'.class' or '$')
+                classpath.append(classesdir)
             else:
                 # R.class
                 classpath.append(os.path.join(dir, 'bin', 'classes'))
