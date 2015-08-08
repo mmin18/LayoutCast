@@ -2,10 +2,14 @@ package com.github.mmin18.layoutcast.server;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.util.Log;
 
+import com.github.mmin18.layoutcast.LayoutCast;
 import com.github.mmin18.layoutcast.context.OverrideContext;
 import com.github.mmin18.layoutcast.util.EmbedHttpServer;
 import com.github.mmin18.layoutcast.util.ResUtils;
@@ -57,12 +61,40 @@ public class LcastServer extends EmbedHttpServer {
 			response.write(String.valueOf(OverrideContext.getApplicationState()).getBytes("utf-8"));
 			return;
 		}
+		if ("/vmversion".equalsIgnoreCase(path)) {
+			final String vmVersion = System.getProperty("java.vm.version");
+			response.setContentTypeText();
+			if (vmVersion == null) {
+				response.write('0');
+			} else {
+				response.write(vmVersion.getBytes("utf-8"));
+			}
+			return;
+		}
+		if ("/launcher".equalsIgnoreCase(path)) {
+			PackageManager pm = app.getPackageManager();
+			Intent i = new Intent(Intent.ACTION_MAIN);
+			i.addCategory(Intent.CATEGORY_LAUNCHER);
+			i.setPackage(app.getPackageName());
+			ResolveInfo ri = pm.resolveActivity(i, 0);
+			i = new Intent(Intent.ACTION_MAIN);
+			i.addCategory(Intent.CATEGORY_LAUNCHER);
+			response.setContentTypeText();
+			response.write(ri.activityInfo.name.getBytes("utf-8"));
+			return;
+		}
 		if (("post".equalsIgnoreCase(method) || "put".equalsIgnoreCase(method))
 				&& path.equalsIgnoreCase("/pushres")) {
 			File dir = new File(context.getCacheDir(), "lcast");
 			dir.mkdir();
-			File file = new File(dir, Integer.toHexString((int) (System
-					.currentTimeMillis() / 100) & 0xfff) + ".apk");
+			File dex = new File(dir, "dex.ped");
+			File file;
+			if (dex.length() > 0) {
+				file = new File(dir, "res.ped");
+			} else {
+				file = new File(dir, Integer.toHexString((int) (System
+						.currentTimeMillis() / 100) & 0xfff) + ".apk");
+			}
 			FileOutputStream fos = new FileOutputStream(file);
 			byte[] buf = new byte[4096];
 			int l;
@@ -76,11 +108,40 @@ public class LcastServer extends EmbedHttpServer {
 					+ " bytes): " + file);
 			return;
 		}
+		if (("post".equalsIgnoreCase(method) || "put".equalsIgnoreCase(method))
+				&& path.equalsIgnoreCase("/pushdex")) {
+			File dir = new File(context.getCacheDir(), "lcast");
+			dir.mkdir();
+			File file = new File(dir, "dex.ped");
+			FileOutputStream fos = new FileOutputStream(file);
+			byte[] buf = new byte[4096];
+			int l;
+			while ((l = input.read(buf)) != -1) {
+				fos.write(buf, 0, l);
+			}
+			fos.close();
+			response.setStatusCode(201);
+			Log.d("lcast", "lcast dex file received (" + file.length() + " bytes)");
+			return;
+		}
 		if ("/lcast".equalsIgnoreCase(path)) {
-			Resources res = ResUtils.getResources(app, latestPushFile);
-			OverrideContext.setGlobalResources(res);
-			response.setStatusCode(200);
-			response.write(String.valueOf(latestPushFile).getBytes("utf-8"));
+			File dir = new File(context.getCacheDir(), "lcast");
+			File dex = new File(dir, "dex.ped");
+			if (dex.length() > 0) {
+				if (latestPushFile != null) {
+					File f = new File(dir, "res.ped");
+					latestPushFile.renameTo(f);
+				}
+				Log.i("lcast", "cast with dex changes, need to restart the process (activity stack will be reserved)");
+				boolean b = LayoutCast.restart();
+				response.setStatusCode(b ? 200 : 500);
+			} else {
+				Resources res = ResUtils.getResources(app, latestPushFile);
+				OverrideContext.setGlobalResources(res);
+				response.setStatusCode(200);
+				response.write(String.valueOf(latestPushFile).getBytes("utf-8"));
+				Log.i("lcast", "cast with only res changes, just recreate the running activity.");
+			}
 			return;
 		}
 		if ("/reset".equalsIgnoreCase(path)) {
@@ -227,7 +288,8 @@ public class LcastServer extends EmbedHttpServer {
 			for (File ff : f.listFiles()) {
 				rm(ff);
 			}
-		} else {
+			f.delete();
+		} else if (f.getName().endsWith(".apk")) {
 			f.delete();
 		}
 	}

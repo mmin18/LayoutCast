@@ -54,6 +54,7 @@ public class MainActivityFragment extends ListFragment {
 	@Override
 	public void onViewCreated(View view, Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
+		((TextView) view.findViewById(R.id.text)).setText(new A().toString());
 		setListAdapter(new Adapter());
 		getListView().setOnItemClickListener(new AdapterView.OnItemClickListener() {
 			@Override
