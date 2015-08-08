@@ -29,6 +29,6 @@ public class ResetActivity extends Activity {
 			public void run() {
 				android.os.Process.killProcess(Process.myPid());
 			}
-		}, 100);
+		}, 2000);
 	}
 }

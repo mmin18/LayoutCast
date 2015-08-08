@@ -10,6 +10,7 @@ import sys
 import os
 import re
 import time
+import shutil
 
 def is_gradle_project(dir):
     return os.path.isfile(os.path.join(dir, 'build.gradle'))
@@ -106,33 +107,38 @@ def package_name(dir):
             data = manifestfile.read()
             return re.findall('package=\"([\w\d_\.]+)\"', data)[0]
 
+def isResName(name):
+    if name=='drawable' or name.startswith('drawable-'):
+        return 2
+    if name=='layout' or name.startswith('layout-'):
+        return 2
+    if name=='values' or name.startswith('values-'):
+        return 2
+    if name=='anim' or name.startswith('anim-'):
+        return 1
+    if name=='color' or name.startswith('color-'):
+        return 1
+    if name=='menu' or name.startswith('menu-'):
+        return 1
+    if name=='raw' or name.startswith('raw-'):
+        return 1
+    if name=='xml' or name.startswith('xml-'):
+        return 1
+    if name=='mipmap' or name.startswith('mipmap-'):
+        return 1
+    if name=='animator' or name.startswith('animator-'):
+        return 1
+    return 0
+
 def countResDir(dir):
     c = 0
     d = 0
     if os.path.isdir(dir):
         for subd in os.listdir(dir):
-            if subd=='drawable' or subd.startswith('drawable-'):
-                c+=1
+            v = isResName(subd)
+            if v>1:
                 d+=1
-            if subd=='layout' or subd.startswith('layout-'):
-                c+=1
-                d+=1
-            if subd=='values' or subd.startswith('values-'):
-                c+=1
-                d+=1
-            if subd=='anim' or subd.startswith('anim-'):
-                c+=1
-            if subd=='color' or subd.startswith('color-'):
-                c+=1
-            if subd=='menu' or subd.startswith('menu-'):
-                c+=1
-            if subd=='raw' or subd.startswith('raw-'):
-                c+=1
-            if subd=='xml' or subd.startswith('xml-'):
-                c+=1
-            if subd=='mipmap' or subd.startswith('mipmap-'):
-                c+=1
-            if subd=='animator' or subd.startswith('animator-'):
+            if v>0:
                 c+=1
     if d==0:
         return 0
@@ -143,8 +149,44 @@ def resdir(dir):
     dir2 = os.path.join(dir, 'src/main/res')
     a = countResDir(dir1)
     b = countResDir(dir2)
-    if a>0 or b>0:
-        return a>b and dir1 or dir2
+    return b>a and dir2 or dir1
+
+def countSrcDir2(dir, lastBuild=0, list=None):
+    count = 0
+    lastModified = 0
+    for dirpath, dirnames, files in os.walk(dir):
+        if '/androidTest/' in dirpath or '/.' in dirpath:
+            continue
+        for fn in files:
+            if fn.endswith('.java'):
+                count += 1
+                mt = os.path.getmtime(os.path.join(dirpath, fn))
+                lastModified = max(lastModified, mt)
+                if list!=None and mt>lastBuild:
+                    list.append(os.path.join(dirpath, fn))
+    return (count, lastModified)
+
+def srcdir2(dir, lastBuild=0, list=None):
+    dir1 = os.path.join(dir, 'src')
+    dir2 = os.path.join(dir, 'src/main/src')
+    list1 = None
+    list2 = None
+    if list!=None:
+        list1 = []
+        list2 = []
+    (a, ma) = countSrcDir2(dir1, lastBuild=lastBuild, list=list1)
+    (b, mb) = countSrcDir2(dir2, lastBuild=lastBuild, list=list2)
+    if b>a:
+        if list!=None:
+            list.extend(list2)
+        return (dir2, b, mb)
+    else:
+        if list!=None:
+            list.extend(list1)
+        return (dir1, a, ma)
+
+def libdir(dir):
+    return os.path.join(dir, 'libs')
 
 def is_launchable_project(dir):
     if is_gradle_project(dir):
@@ -255,6 +297,17 @@ def get_aapt(path):
                     minp = os.path.join(btpath, pn, 'aapt')
         return minp
 
+def get_dx(path):
+    if os.path.isdir(path) and os.path.isdir(os.path.join(path, 'build-tools')):
+        btpath = os.path.join(path, 'build-tools')
+        minv = LooseVersion('0')
+        minp = None
+        for pn in os.listdir(btpath):
+            if os.path.isfile(os.path.join(btpath, pn, 'dx')):
+                if LooseVersion(pn) > minv:
+                    minp = os.path.join(btpath, pn, 'dx')
+        return minp
+
 def get_android_sdk(dir, condf = get_android_jar):
     if os.path.isfile(os.path.join(dir, 'local.properties')):
         with open(os.path.join(dir, 'local.properties'), 'r') as f:
@@ -349,47 +402,147 @@ if __name__ == "__main__":
         exit(1)
 
     is_gradle = is_gradle_project(dir)
-    if is_gradle:
-        print('cast %s:%d as gradle project'%(packagename, port))
-    else:
-        print('cast %s:%d as eclipse project'%(packagename, port))
 
     android_jar = get_android_jar(sdkdir)
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
-    bindir = os.path.join(dir, is_gradle and 'build/lcast' or 'bin/lcast')
-    binresdir = os.path.join(bindir, 'res')
-    if not os.path.exists(os.path.join(binresdir, 'values')):
-        os.makedirs(os.path.join(binresdir, 'values'))
-
-    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:%d/ids.xml'%port])
-    cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
-
-    aaptpath = get_aapt(sdkdir)
-    if not aaptpath:
-        print('aapt not found in %s/build-tools'%sdkdir)
-        exit(1)
-    aaptargs = [aaptpath, 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
     deps = deps_list(dir)
-    if is_gradle:
-        for dep in list_aar_projects(dir, deps):
-            aaptargs.append('-S')
-            aaptargs.append(dep)
-    for dep in deps:
-        aaptargs.append('-S')
-        aaptargs.append(resdir(dep))
-    aaptargs.append('-S')
-    aaptargs.append(resdir(dir))
-    aaptargs.append('-S')
-    aaptargs.append(binresdir)
-    aaptargs.append('-M')
-    aaptargs.append(manifestpath(dir))
-    aaptargs.append('-I')
-    aaptargs.append(android_jar)
-    cexec(aaptargs)
+    bindir = os.path.join(dir, is_gradle and 'build/lcast' or 'bin/lcast')
 
-    cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
+    # check if the /res and /src has changed
+    lastBuild = 0
+    rdir = is_gradle and os.path.join(dir, 'build', 'outputs', 'apk') or os.path.join(dir, 'bin')
+    if os.path.isdir(rdir):
+        for fn in os.listdir(rdir):
+            if fn.endswith('.apk') and not '-androidTest' in fn:
+                fpath = os.path.join(rdir, fn)
+                lastBuild = os.path.getmtime(fpath)
+    adeps = []
+    adeps.extend(deps)
+    adeps.append(dir)
+    latestResModified = 0
+    latestSrcModified = 0
+    srcs = []
+    msrclist = []
+    for dep in adeps:
+        rdir = resdir(dep)
+        for subd in os.listdir(rdir):
+            if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
+                for fn in os.listdir(os.path.join(rdir, subd)):
+                    fpath = os.path.join(rdir, subd, fn)
+                    if os.path.isfile(fpath) and not fn.startswith('.'):
+                        latestResModified = max(latestResModified, os.path.getmtime(fpath))
+        (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
+        srcs.append(sdir)
+        latestSrcModified = max(latestSrcModified, smt)
+    resModified = latestResModified > lastBuild
+    srcModified = latestSrcModified > lastBuild
+    targets = ''
+    if resModified and srcModified:
+        targets = 'both /res and /src'
+    elif resModified:
+        targets = '/res'
+    elif srcModified:
+        targets = '/src'
+    else:
+        print('%s has no /res or /src changes'%(packagename))
+        exit(0)
+
+    if is_gradle:
+        print('cast %s:%d as gradle project with %s changed'%(packagename, port, targets))
+    else:
+        print('cast %s:%d as eclipse project with %s changed'%(packagename, port, targets))
+
+    if resModified:
+        binresdir = os.path.join(bindir, 'res')
+        if not os.path.exists(os.path.join(binresdir, 'values')):
+            os.makedirs(os.path.join(binresdir, 'values'))
+
+        cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:%d/ids.xml'%port])
+        cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
+
+        aaptpath = get_aapt(sdkdir)
+        if not aaptpath:
+            print('aapt not found in %s/build-tools'%sdkdir)
+            exit(1)
+        aaptargs = [aaptpath, 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
+        if is_gradle:
+            for dep in list_aar_projects(dir, deps):
+                aaptargs.append('-S')
+                aaptargs.append(dep)
+        for dep in deps:
+            aaptargs.append('-S')
+            aaptargs.append(resdir(dep))
+        aaptargs.append('-S')
+        aaptargs.append(resdir(dir))
+        aaptargs.append('-S')
+        aaptargs.append(binresdir)
+        aaptargs.append('-M')
+        aaptargs.append(manifestpath(dir))
+        aaptargs.append('-I')
+        aaptargs.append(android_jar)
+        cexec(aaptargs)
+
+        cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
+
+    if srcModified:
+        vmversion = cexec(['curl', 'http://127.0.0.1:%d/vmversion'%port], failOnError=False)
+        if vmversion.startswith('1'):
+            print('cast dex to dalvik vm is not supported, you need ART in Android 5.0')
+        elif vmversion.startswith('2'):
+            classpath = [android_jar]
+            for dep in adeps:
+                dlib = libdir(dep)
+                for fjar in os.listdir(dlib):
+                    if fjar.endswith('.jar'):
+                        classpath.append(os.path.join(dlib, fjar))
+            if is_gradle:
+                darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
+                # TODO: use the max version
+                for dirpath, dirnames, files in os.walk(darr):
+                    if '/androidTest/' in dirpath or '/.' in dirpath:
+                        continue
+                    for fn in files:
+                        if fn=='classes.jar':
+                            classpath.append(os.path.join(dirpath, fn))
+                # TODO:
+                classpath.append(os.path.join(dir, 'build', 'intermediates', 'classes', 'debug'))
+            else:
+                # R.class
+                classpath.append(os.path.join(dir, 'bin', 'classes'))
+
+            binclassesdir = os.path.join(bindir, 'classes')
+            shutil.rmtree(binclassesdir, ignore_errors=True)
+            os.makedirs(binclassesdir)
+
+            javacargs = ['javac', '-target', '1.7', '-source', '1.7']
+            javacargs.append('-cp')
+            javacargs.append(':'.join(classpath))
+            javacargs.append('-d')
+            javacargs.append(binclassesdir)
+            javacargs.append('-sourcepath')
+            javacargs.append(':'.join(srcs))
+            javacargs.extend(msrclist)
+            cexec(javacargs)
+
+            dxpath = get_dx(sdkdir)
+            if not dxpath:
+                print('dx not found in %s/build-tools'%sdkdir)
+                exit(1)
+            dxoutput = os.path.join(bindir, 'classes.dex')
+            if os.path.isfile(dxoutput):
+                os.remove(dxoutput)
+            cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir])
+
+            cexec(['curl', '--silent', '-T', dxoutput, 'http://127.0.0.1:%d/pushdex'%port])
+
+        else:
+            if is_gradle:
+                print('LayoutCast library out of date, please sync your project with gradle')
+            else:
+                print('libs/lcast.jar is out of date, please update')
+
     cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
 
     cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
