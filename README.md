@@ -32,26 +32,7 @@ Here is how it compared to Gradle and Facebook Buck:
 
 The test machine is a 2015 MBP with a 2014 MotoX.
 
-The test project's apk is about 14.3MB, which contains:
-
-	--------------------------------------------------------------------------------
-	Language                      files          blank        comment           code
-	--------------------------------------------------------------------------------
-	Java                           2074          59585          51078         380114
-	XML                            6576          38710           9027         306113
-	C                                 3             86            142           1511
-	Groovy                            7             36             13            408
-	Ruby                              2             82             16            323
-	Python                            3             47             31            197
-	CSS                               1             24              3            194
-	Bourne Again Shell                1             20             21            123
-	Ant                               1             24             57             78
-	DOS Batch                         1             24              2             64
-	C/C++ Header                      1              7              0             33
-	JSON                              3              0              0              3
-	------------------------------------------------------	--------------------------
-	SUM:                           8673          98645          60390         689161
-	--------------------------------------------------------------------------------
+The test project's apk is about 14.3MB, which contains 380k lines of java code and 86k lines of xml files.
 
 ### About Facebook Buck
 
