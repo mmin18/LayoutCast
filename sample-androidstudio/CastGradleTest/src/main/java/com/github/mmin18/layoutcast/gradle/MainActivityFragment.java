@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.facebook.drawee.backends.pipeline.Fresco;
 import com.facebook.drawee.view.SimpleDraweeView;
+import com.github.mmin18.layoutcast.library.Lib;
 
 
 /**
@@ -54,7 +55,7 @@ public class MainActivityFragment extends ListFragment {
 	@Override
 	public void onViewCreated(View view, Bundle savedInstanceState) {
 		super.onViewCreated(view, savedInstanceState);
-		((TextView) view.findViewById(R.id.text)).setText(new A().toString());
+		((TextView) view.findViewById(R.id.text)).setText(new Lib().toString());
 		setListAdapter(new Adapter());
 		getListView().setOnItemClickListener(new AdapterView.OnItemClickListener() {
 			@Override
