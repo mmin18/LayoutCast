@@ -4,7 +4,8 @@ Android SDK sucks. It's so slow to build and run which waste me a lot of time ev
 
 LayoutCast is a little tool to help with that, it will cast every changes in your Java source code or resources (including library project) to your phone within 5 sec, and does not restart the hold application.
 
-![GIF](images/intro.gif)
+![GIF](images/cast_res.gif)
+![GIF](images/cast_code.gif)
 
 Youtube demo video: <https://youtu.be/rc04LK2_suU>
 
