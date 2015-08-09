@@ -54,6 +54,7 @@ android {
     }
 }
 
+// gradle bintrayUpload
 ext {
     bintrayRepo = 'mvn'
     bintrayName = 'layoutcast'
@@ -67,7 +68,7 @@ ext {
     siteUrl = 'https://github.com/mmin18/LayoutCast'
     gitUrl = 'https://github.com/mmin18/LayoutCast.git'
 
-    libraryVersion = '1.0.1'
+    libraryVersion = '1.1.0'
 
     developerId = 'mmin18'
     developerName = 'mmin18'
@@ -80,3 +81,13 @@ ext {
 
 apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
 apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
+
+
+// gradle clean build generateRelease
+ext {
+    PUBLISH_GROUP_ID = 'com.github.mmin18.layoutcast'
+    PUBLISH_ARTIFACT_ID = 'library'
+    PUBLISH_VERSION = '1.1.0'
+}
+
+apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'
