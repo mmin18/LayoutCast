@@ -68,23 +68,30 @@ public class LayoutCast {
 		inited = true;
 	}
 
-	public static boolean restart() {
-		Context ctx = appContext;
-		try {
-			Intent i = new Intent(ctx, ResetActivity.class);
-			i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-			ctx.startActivity(i);
+	public static boolean restart(boolean confirm) {
+		Context top = OverrideContext.getTopActivity();
+		if (top instanceof ResetActivity) {
+			((ResetActivity) top).reset();
 			return true;
-		} catch (Exception e) {
-			final String str = "Fail to cast dex, make sure you have <Activity android:name=\"" + ResetActivity.class.getName() + "\"/> registered in AndroidManifest.xml";
-			Log.e("lcast", str);
-			new Handler(Looper.getMainLooper()).post(new Runnable() {
-				@Override
-				public void run() {
-					Toast.makeText(appContext, str, Toast.LENGTH_LONG).show();
-				}
-			});
-			return false;
+		} else {
+			Context ctx = appContext;
+			try {
+				Intent i = new Intent(ctx, ResetActivity.class);
+				i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				i.putExtra("reset", confirm);
+				ctx.startActivity(i);
+				return true;
+			} catch (Exception e) {
+				final String str = "Fail to cast dex, make sure you have <Activity android:name=\"" + ResetActivity.class.getName() + "\"/> registered in AndroidManifest.xml";
+				Log.e("lcast", str);
+				new Handler(Looper.getMainLooper()).post(new Runnable() {
+					@Override
+					public void run() {
+						Toast.makeText(appContext, str, Toast.LENGTH_LONG).show();
+					}
+				});
+				return false;
+			}
 		}
 	}
 }

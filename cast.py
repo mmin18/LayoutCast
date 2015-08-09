@@ -482,6 +482,10 @@ if __name__ == "__main__":
     else:
         print('cast %s:%d as eclipse project with %s changed'%(packagename, port, targets))
 
+    # prepare to reset
+    if srcModified:
+        cexec(['curl', 'http://127.0.0.1:%d/pcast'%port], failOnError=False)
+
     if resModified:
         binresdir = os.path.join(bindir, 'res')
         if not os.path.exists(os.path.join(binresdir, 'values')):

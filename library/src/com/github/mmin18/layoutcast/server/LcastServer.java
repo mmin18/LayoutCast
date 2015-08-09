@@ -124,6 +124,11 @@ public class LcastServer extends EmbedHttpServer {
 			Log.d("lcast", "lcast dex file received (" + file.length() + " bytes)");
 			return;
 		}
+		if ("/pcast".equalsIgnoreCase(path)) {
+			LayoutCast.restart(false);
+			response.setStatusCode(200);
+			return;
+		}
 		if ("/lcast".equalsIgnoreCase(path)) {
 			File dir = new File(context.getCacheDir(), "lcast");
 			File dex = new File(dir, "dex.ped");
@@ -133,7 +138,7 @@ public class LcastServer extends EmbedHttpServer {
 					latestPushFile.renameTo(f);
 				}
 				Log.i("lcast", "cast with dex changes, need to restart the process (activity stack will be reserved)");
-				boolean b = LayoutCast.restart();
+				boolean b = LayoutCast.restart(true);
 				response.setStatusCode(b ? 200 : 500);
 			} else {
 				Resources res = ResUtils.getResources(app, latestPushFile);
