@@ -1,28 +1,27 @@
 # LayoutCast
 
-Android SDK sucks. It takes forever to build and run the code on your device/emulator. Especially when you are tuning your UI design, usually it only changes single line of code, but it takes forever waiting the application to run.
+Android SDK sucks. It's so slow to build and run which waste me a lot of time every day.
 
-LayoutCast is a little tool to help with that, it will cast every changes in your /res (including library project) to your phone within 5 sec, and does not restart the hold application.
+LayoutCast is a little tool to help with that, it will cast every changes in your Java source code or resources (including library project) to your phone within 5 sec, and does not restart the hold application.
 
 ![GIF](images/intro.gif)
 
-Youtube demo video: <https://youtu.be/1VmfPQmV8mc>
+Youtube demo video: <https://youtu.be/rc04LK2_suU>
 
 优酷: <http://v.youku.com/v_show/id_XMTMwMTk2OTk0OA>
 
-## Features
+## Features and Limits
 
-- Fast cast resources changes, usually less than 5 sec.
-
-- Cast layout, drawable, values (basically res/**) to the running application without restart the hole application.
-
+- Fast cast code and resource changes, usually less than 5 sec.
+- Cast does not reset the hole application. The running activity stack will be kept.
+- Easy to setup, only add few lines of code.
 - Support both eclipse and AndroidStudio project.
-
 - Provide a AndroidStudio plugin to click and cast.
 
-- Easy to setup, only add few lines of code.
+Limits:
 
-NOTICE: LayoutCast only support Mac now.
+- LayoutCast only support Mac (for now)
+- Cast Java code only support ART runtime (Android 5.0)
 
 ## Get Started for AndroidStudio
 
@@ -62,13 +61,17 @@ Also don't forget to check if this Application class is registered in AndroidMan
         android:name=".MyApplication"
 		...
 
+Add an activity in your manifest, this is only used to reset the running process to make the application restart and restore its activity stack.
+
+	<activity android:name="com.github.mmin18.layoutcast.ResetActivity" />
+
 And make sure you have the network permission in your AndroidManifest.xml:
 
     <uses-permission android:name="android.permission.INTERNET" />
 
 ### Run and cast
 
-You need to run the application first, then make some changes in /res folder.
+You need to run the application first, then make some changes in your project.
 
 Click the LayoutCast button in toolbar (on the right of Run button) or go to menu `Tools`> `Layout Cast`.
 
@@ -115,10 +118,8 @@ It than scans your project folder to find the /res folder, and all dependencies'
 
 Usually the activity will keep its running state in **onSaveInstanceState()** and restores when it come back later.
 
-## Limits
+## Troubleshooting
 
-- It does not cast java code changes
-
+- It can only find /src folder under <project>/src or <project>/src/main/src
 - It can only find /res folder under <project>/res or <project>/src/main/res
-
 - You can add new or replace resources, but you can't delete or rename resources (for now)
