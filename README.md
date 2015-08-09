@@ -1,8 +1,8 @@
-# LayoutCast
-
 Android SDK sucks. It's so slow to build and run which waste me a lot of time every day.
 
 LayoutCast is a little tool to help with that, it will cast every changes in your Java source code or resources (including library project) to your phone within 5 sec, and does not restart the hold application.
+
+把代码和资源文件的改动直接同步到手机上，应用不需要重启。省去了编译运行漫长的等待，比较适合真机调试的时候使用。
 
 ![GIF](images/cast_res.gif)
 ![GIF](images/cast_code.gif)
