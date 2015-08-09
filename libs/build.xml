@@ -1,9 +1,9 @@
 <project name="Common" default="help" basedir=".">
 
-	<property name="proj" location="../LayoutCast" />
+	<property name="proj" location="../library" />
 
 	<property file="../local.properties" />
-	<property file="../LayoutCast/project.properties" />
+	<property file="../library/project.properties" />
 
 	<echo>${sdk.dir}/platforms/${target}/android.jar</echo>
 

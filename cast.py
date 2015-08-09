@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50803'
+__version__ = '1.50808'
+__plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
 from distutils.version import LooseVersion
