@@ -22,19 +22,19 @@ import com.github.mmin18.layoutcast.library.Lib;
 public class MainActivityFragment extends ListFragment {
 
 	public static String[] IMAGES = {
-			"http://www.tesla.cn/sites/default/files/images/homepage/home_hero_70.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/section-initial-original-april.jpg",
-			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single.jpg",
-			"http://www.tesla.cn/sites/all/themes/custom/tesla_theme/assets/img/models/chassis-explorer/chassis-motor-single-vertical.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/exterior/hero-01.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/door-handles-black.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/charging-europe.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/gallery/interior/hero-01-LHD.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/glass-pano-roof.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/obeche-matte-yacht-floor.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-s/interior-design-detail-LHD.jpg",
-			"http://www.tesla.cn/sites/default/files/images/model-x/teaser@2x.jpg",
-			"http://www.tesla.cn/sites/default/files/images/supercharger/supercharger-hero@2x.jpg"
+			"http://i3.mifile.cn/a4/T1sAVjBCAT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1lhVjB5hT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1MZdgBgJT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1XIEjBCxT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1F0WjBCCT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T18yZQBCET1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T16nVjBCKT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T18zWQB4WT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1YoZQByYT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1oixjB5bT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T12WdjB5YT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1KzbQBvbT1RXrhCrK.jpg",
+			"http://i3.mifile.cn/a4/T1odEjB5bT1RXrhCrK.jpg"
 	};
 
 	public MainActivityFragment() {
