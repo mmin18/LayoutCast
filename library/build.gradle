@@ -68,7 +68,7 @@ ext {
     siteUrl = 'https://github.com/mmin18/LayoutCast'
     gitUrl = 'https://github.com/mmin18/LayoutCast.git'
 
-    libraryVersion = '1.1.1'
+    libraryVersion = '1.1.2'
 
     developerId = 'mmin18'
     developerName = 'mmin18'
@@ -87,7 +87,7 @@ apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.
 ext {
     PUBLISH_GROUP_ID = 'com.github.mmin18.layoutcast'
     PUBLISH_ARTIFACT_ID = 'library'
-    PUBLISH_VERSION = '1.1.1'
+    PUBLISH_VERSION = '1.1.2'
 }
 
 apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'
