@@ -142,3 +142,4 @@ Usually the activity will keep its running state in **onSaveInstanceState()** an
 - It can only find /src folder under <project>/src or <project>/src/main/src
 - It can only find /res folder under <project>/res or <project>/src/main/res
 - You can add new or replace resources, but you can't delete or rename resources (for now)
+- If cast failed, clean your project, remove /bin and /build and rebuild again may solve the problem
