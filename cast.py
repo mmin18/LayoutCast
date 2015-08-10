@@ -187,7 +187,11 @@ def srcdir2(dir, lastBuild=0, list=None):
         return (dir1, a, ma)
 
 def libdir(dir):
-    return os.path.join(dir, 'libs')
+    ddir = os.path.join(dir, 'libs')
+    if os.path.isdir(ddir):
+        return ddir
+    else:
+        return None
 
 def is_launchable_project(dir):
     if is_gradle_project(dir):
@@ -529,9 +533,10 @@ if __name__ == "__main__":
             classpath = [android_jar]
             for dep in adeps:
                 dlib = libdir(dep)
-                for fjar in os.listdir(dlib):
-                    if fjar.endswith('.jar'):
-                        classpath.append(os.path.join(dlib, fjar))
+                if dlib:
+                    for fjar in os.listdir(dlib):
+                        if fjar.endswith('.jar'):
+                            classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
                 darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
                 # TODO: use the max version
