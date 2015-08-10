@@ -1,7 +1,7 @@
 <idea-plugin version="2">
   <id>com.github.mmin18.layoutcast.ide</id>
   <name>LayoutCast IDE Support</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <vendor email="mmin18@gmail.com" url="http://github.com/mmin18/LayoutCast">mmin18</vendor>
 
   <description><![CDATA[
