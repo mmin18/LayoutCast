@@ -45,7 +45,7 @@ public class ResetActivity extends Activity {
 		HANDLER.removeCallbacks(reset);
 		long d = SystemClock.uptimeMillis() - createTime;
 		if (d > RESET_WAIT) {
-			HANDLER.post(reset);
+			HANDLER.postDelayed(reset, 100);
 		} else {
 			HANDLER.postDelayed(reset, RESET_WAIT - d);
 		}
