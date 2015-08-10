@@ -572,6 +572,12 @@ if __name__ == "__main__":
                     for fn in files:
                         if fn=='classes.jar':
                             classpath.append(os.path.join(dirpath, fn))
+                            if os.path.isdir(os.path.join(dirpath, 'libs')):
+                                for fn in os.listdir(os.path.join(dirpath, 'libs')):
+                                    if fn.endswith('.jar'):
+                                        fpath = os.path.join(dirpath, 'libs', fn)
+                                        if os.path.isfile(fpath):
+                                            classpath.append(fpath)
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', '/')+'.class' or '$')
                 classpath.append(classesdir)
