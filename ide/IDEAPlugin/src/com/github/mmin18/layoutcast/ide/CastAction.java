@@ -57,38 +57,11 @@ public class CastAction extends AnAction {
             }
         }
 
-        try {
-            File cp = new File(PathUtil.getJarPathForClass(getClass()));
-            if (cp.isDirectory()) {
-                File file = new File(cp, "cast.py");
-                InputStream ins = new FileInputStream(file);
-                double v = readVersion(ins);
-                ins.close();
-                if (v > projectCastVersion) {
-                    castPy = file;
-                }
-            } else {
-                ZipFile zf = new ZipFile(cp);
-                ZipEntry ze = zf.getEntry("cast.py");
-                InputStream ins = zf.getInputStream(ze);
-                double v = readVersion(ins);
-                ins.close();
-                if (v > projectCastVersion) {
-                    File tmp = File.createTempFile("lcast", "" + v);
-                    FileOutputStream fos = new FileOutputStream(tmp);
-                    ins = zf.getInputStream(ze);
-                    byte[] buf = new byte[4096];
-                    int l;
-                    while ((l = ins.read(buf)) != -1) {
-                        fos.write(buf, 0, l);
-                    }
-                    fos.close();
-                    ins.close();
-
-                    castPy = tmp;
-                }
+        if (StartupComponent.getCastVersion() > projectCastVersion) {
+            File ff = StartupComponent.getCastFile();
+            if (ff != null) {
+                castPy = ff;
             }
-        } catch (Exception ex) {
         }
 
         final File finalCastPy = castPy;
@@ -191,7 +164,7 @@ public class CastAction extends AnAction {
 
     private static final Pattern R_VER = Pattern.compile("^__version__\\s*=\\s*['\"](\\d+\\.\\d+)['\"]", Pattern.MULTILINE);
 
-    private double readVersion(InputStream ins) throws Exception {
+    public static double readVersion(InputStream ins) throws Exception {
         byte[] buf = new byte[1024];
         int l = ins.read(buf);
         String str = new String(buf, 0, l, "utf-8");
