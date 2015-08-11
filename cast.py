@@ -169,7 +169,12 @@ def resdir(dir):
     dir2 = os.path.join(dir, 'src/main/res')
     a = countResDir(dir1)
     b = countResDir(dir2)
-    return b>a and dir2 or dir1
+    if b==0 and a==0:
+        return None
+    elif b>a:
+        return dir2
+    else:
+        return dir1
 
 def countSrcDir2(dir, lastBuild=0, list=None):
     count = 0
@@ -483,12 +488,13 @@ if __name__ == "__main__":
     msrclist = []
     for dep in adeps:
         rdir = resdir(dep)
-        for subd in os.listdir(rdir):
-            if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
-                for fn in os.listdir(os.path.join(rdir, subd)):
-                    fpath = os.path.join(rdir, subd, fn)
-                    if os.path.isfile(fpath) and not fn.startswith('.'):
-                        latestResModified = max(latestResModified, os.path.getmtime(fpath))
+        if rdir:
+            for subd in os.listdir(rdir):
+                if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
+                    for fn in os.listdir(os.path.join(rdir, subd)):
+                        fpath = os.path.join(rdir, subd, fn)
+                        if os.path.isfile(fpath) and not fn.startswith('.'):
+                            latestResModified = max(latestResModified, os.path.getmtime(fpath))
         (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
         srcs.append(sdir)
         latestSrcModified = max(latestSrcModified, smt)
@@ -532,10 +538,14 @@ if __name__ == "__main__":
                 aaptargs.append('-S')
                 aaptargs.append(dep)
         for dep in deps:
+            rdir = resdir(dep)
+            if rdir:
+                aaptargs.append('-S')
+                aaptargs.append(rdir)
+        rdir = resdir(dir)
+        if rdir:
             aaptargs.append('-S')
-            aaptargs.append(resdir(dep))
-        aaptargs.append('-S')
-        aaptargs.append(resdir(dir))
+            aaptargs.append(rdir)
         aaptargs.append('-S')
         aaptargs.append(binresdir)
         aaptargs.append('-M')
