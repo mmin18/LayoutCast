@@ -14,11 +14,10 @@ import time
 import shutil
 
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+def is_exe(fpath):
+    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 def which(program):
     import os
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
     fpath, fname = os.path.split(program)
     if fpath:
         if is_exe(program):
@@ -31,6 +30,22 @@ def which(program):
                 return exe_file
 
     return None
+
+def curl(url, body=None, ignoreError=False):
+    import sys
+    try:
+        if sys.version_info >= (3, 0):
+            import urllib.request
+            return urllib.request.urlopen(url, data=body).read().decode('utf-8').strip()
+        else:
+            import urllib2
+            return urllib2.urlopen(url, data=body).read().decode('utf-8').strip()
+    except Exception as e:
+        if ignoreError:
+            return None
+        else:
+            print(e)
+            exit(-1)
 
 def is_gradle_project(dir):
     return os.path.isfile(os.path.join(dir, 'build.gradle'))
@@ -312,29 +327,34 @@ def get_android_jar(path):
     return result
 
 def get_adb(path):
-    if os.path.isdir(path) and os.path.isfile(os.path.join(path, 'platform-tools/adb')):
-        return os.path.join(path, 'platform-tools/adb')
+    execname = os.name=='nt' and 'adb.exe' or 'adb'
+    if os.path.isdir(path) and is_exe(os.path.join(path, 'platform-tools', execname)):
+        return os.path.join(path, 'platform-tools', execname)
 
 def get_aapt(path):
+    execname = os.name=='nt' and 'aapt.exe' or 'aapt'
     if os.path.isdir(path) and os.path.isdir(os.path.join(path, 'build-tools')):
         btpath = os.path.join(path, 'build-tools')
         minv = LooseVersion('0')
         minp = None
         for pn in os.listdir(btpath):
-            if os.path.isfile(os.path.join(btpath, pn, 'aapt')):
+            if is_exe(os.path.join(btpath, pn, execname)):
                 if LooseVersion(pn) > minv:
-                    minp = os.path.join(btpath, pn, 'aapt')
+                    minv = LooseVersion(pn)
+                    minp = os.path.join(btpath, pn, execname)
         return minp
 
 def get_dx(path):
+    execname = os.name=='nt' and 'dx.bat' or 'dx'
     if os.path.isdir(path) and os.path.isdir(os.path.join(path, 'build-tools')):
         btpath = os.path.join(path, 'build-tools')
         minv = LooseVersion('0')
         minp = None
         for pn in os.listdir(btpath):
-            if os.path.isfile(os.path.join(btpath, pn, 'dx')):
+            if is_exe(os.path.join(btpath, pn, execname)):
                 if LooseVersion(pn) > minv:
-                    minp = os.path.join(btpath, pn, 'dx')
+                    minv = LooseVersion(pn)
+                    minp = os.path.join(btpath, pn, execname)
         return minp
 
 def get_android_sdk(dir, condf = get_android_jar):
@@ -342,8 +362,10 @@ def get_android_sdk(dir, condf = get_android_jar):
         with open(os.path.join(dir, 'local.properties'), 'r') as f:
             s = f.read()
             m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
-            if m and os.path.isdir(m.group(1)) and condf(m.group(1)):
-                return m.group(1)
+            if m:
+                val = m.group(1).replace('\\:', ':').replace('\\=', '=').replace('\\\\', '\\')
+                if os.path.isdir(val) and condf(val):
+                    return val
 
     path = os.getenv('ANDROID_HOME')
     if path and os.path.isdir(path) and condf(path):
@@ -353,17 +375,54 @@ def get_android_sdk(dir, condf = get_android_jar):
     if path and os.path.isdir(path) and condf(path):
         return path
 
+    # mac
     path = os.path.expanduser('~/Library/Android/sdk')
     if path and os.path.isdir(path) and condf(path):
         return path
 
-    path = '/Applications/android-sdk-mac_86'
+    # windows
+    path = os.path.expanduser('~/AppData/Local/Android/sdk')
     if path and os.path.isdir(path) and condf(path):
         return path
 
-    path = '/android-sdk-mac_86'
-    if path and os.path.isdir(path) and condf(path):
-        return path
+def get_javac(dir):
+    execname = os.name=='nt' and 'javac.exe' or 'javac'
+    if dir and os.path.isfile(os.path.join(dir, 'bin', execname)):
+        return os.path.join(dir, 'bin', execname)
+
+    wpath = which(execname)
+    if wpath:
+        return wpath
+
+    path = os.getenv('JAVA_HOME')
+    if path and is_exe(os.path.join(path, 'bin', execname)):
+        return os.path.join(path, 'bin', execname)
+
+    if os.name=='nt':
+        btpath = 'C:\\Program Files\\Java'
+        if os.path.isdir(btpath):
+            minv = ''
+            minp = None
+            for pn in os.listdir(btpath):
+                path = os.path.join(btpath, pn, 'bin', execname)
+                if is_exe(path):
+                    if pn > minv:
+                        minv = pn
+                        minp = path
+            return minp
+    else:
+        for btpath in ['/Library/Java/JavaVirtualMachines', '/System/Library/Java/JavaVirtualMachines']:
+            if os.path.isdir(btpath):
+                minv = ''
+                minp = None
+                for pn in os.listdir(btpath):
+                    path = os.path.join(btpath, pn, 'Contents', 'Home', 'bin', execname)
+                    if is_exe(path):
+                        if pn > minv:
+                            minv = pn
+                            minp = path
+                if minp:
+                    return minp
 
 def search_path(dir, filename):
     dir0 = filename
@@ -397,22 +456,22 @@ if __name__ == "__main__":
 
     dir = '.'
     sdkdir = None
+    jdkdir = None
 
     starttime = time.time()
 
     if len(sys.argv) > 1:
         parser = argparse.ArgumentParser()
         parser.add_argument('--sdk', help='specify Android SDK path')
+        parser.add_argument('--jdk', help='specify JDK path')
         parser.add_argument('project')
         args = parser.parse_args()
         if args.sdk:
             sdkdir = args.sdk
+        if args.jdk:
+            jdkdir = args.jdk
         if args.project:
             dir = args.project
-
-    if not which('curl'):
-        print('curl is required')
-        exit(1)
 
     projlist = [i for i in list_projects(dir) if is_launchable_project(i)]
 
@@ -436,10 +495,10 @@ if __name__ == "__main__":
         exit(1)
     for i in range(0, 10):
         cexec([adbpath, 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
-        output = cexec(['curl', 'http://127.0.0.1:%d/packagename'%(41128+i)], failOnError = False).strip()
+        output = curl('http://127.0.0.1:%d/packagename'%(41128+i), ignoreError=True)
         if output and output in pnlist:
             ii=pnlist.index(output)
-            output = cexec(['curl', 'http://127.0.0.1:%d/appstate'%(41128+i)], failOnError=False).strip()
+            output = curl('http://127.0.0.1:%d/appstate'%(41128+i), ignoreError=True)
             if output and int(output) > stlist[ii]:
                 portlist[ii] = (41128+i)
                 stlist[ii] = int(output)
@@ -518,15 +577,19 @@ if __name__ == "__main__":
 
     # prepare to reset
     if srcModified:
-        cexec(['curl', 'http://127.0.0.1:%d/pcast'%port], failOnError=False)
+        curl('http://127.0.0.1:%d/pcast'%port, ignoreError=True)
 
     if resModified:
         binresdir = os.path.join(bindir, 'res')
         if not os.path.exists(os.path.join(binresdir, 'values')):
             os.makedirs(os.path.join(binresdir, 'values'))
 
-        cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/ids.xml'), 'http://127.0.0.1:%d/ids.xml'%port])
-        cexec(['curl', '--silent', '--output', os.path.join(binresdir, 'values/public.xml'), 'http://127.0.0.1:%d/public.xml'%port])
+        data = curl('http://127.0.0.1:%d/ids.xml'%port)
+        with open(os.path.join(binresdir, 'values/ids.xml'), 'w') as fp:
+            fp.write(data)
+        data = curl('http://127.0.0.1:%d/public.xml'%port)
+        with open(os.path.join(binresdir, 'values/public.xml'), 'w') as fp:
+            fp.write(data)
 
         aaptpath = get_aapt(sdkdir)
         if not aaptpath:
@@ -554,17 +617,22 @@ if __name__ == "__main__":
         aaptargs.append(android_jar)
         cexec(aaptargs)
 
-        cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
+        with open(os.path.join(bindir, 'res.zip'), 'rb') as fp:
+            curl('http://127.0.0.1:%d/pushres'%port, body=fp.read())
 
     if srcModified:
-        vmversion = cexec(['curl', 'http://127.0.0.1:%d/vmversion'%port], failOnError=False)
+        vmversion = curl('http://127.0.0.1:%d/vmversion'%port, ignoreError=True)
+        if vmversion==None:
+            vmversion = ''
         if vmversion.startswith('1'):
             print('cast dex to dalvik vm is not supported, you need ART in Android 5.0')
         elif vmversion.startswith('2'):
-            if not which('javac'):
+            javac = get_javac(jdkdir)
+            if not javac:
                 print('javac is required to compile java code, config your PATH to include javac')
+                exit(-1)
 
-            launcher = cexec(['curl', 'http://127.0.0.1:%d/launcher'%port])
+            launcher = curl('http://127.0.0.1:%d/launcher'%port)
 
             classpath = [android_jar]
             for dep in adeps:
@@ -599,13 +667,13 @@ if __name__ == "__main__":
             shutil.rmtree(binclassesdir, ignore_errors=True)
             os.makedirs(binclassesdir)
 
-            javacargs = ['javac', '-target', '1.7', '-source', '1.7']
+            javacargs = [javac, '-target', '1.7', '-source', '1.7']
             javacargs.append('-cp')
-            javacargs.append(':'.join(classpath))
+            javacargs.append(os.path.pathsep.join(classpath))
             javacargs.append('-d')
             javacargs.append(binclassesdir)
             javacargs.append('-sourcepath')
-            javacargs.append(':'.join(srcs))
+            javacargs.append(os.path.pathsep.join(srcs))
             javacargs.extend(msrclist)
             cexec(javacargs)
 
@@ -618,7 +686,8 @@ if __name__ == "__main__":
                 os.remove(dxoutput)
             cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir])
 
-            cexec(['curl', '--silent', '-T', dxoutput, 'http://127.0.0.1:%d/pushdex'%port])
+            with open(dxoutput, 'rb') as fp:
+                curl('http://127.0.0.1:%d/pushdex'%port, body=fp.read())
 
         else:
             if is_gradle:
@@ -626,7 +695,7 @@ if __name__ == "__main__":
             else:
                 print('libs/lcast.jar is out of date, please update')
 
-    cexec(['curl', '--silent', 'http://127.0.0.1:%d/lcast'%port])
+    curl('http://127.0.0.1:%d/lcast'%port)
 
     cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
 
