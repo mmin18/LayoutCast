@@ -104,7 +104,7 @@ It will show the result above status bar:
 
 ### 1. Prepare the cast script
 
-I haven't write the Eclipse plugin yet, so if you need to use it on a eclipse project, you can try to use the command line.
+I haven't written the Eclipse plugin yet, so if you need to use it on a eclipse project, you can try to use the command line.
 
 You can get the script here <https://raw.githubusercontent.com/mmin18/LayoutCast/master/cast.py>. Put the script in project root dir or anywhere you like. Since it is written in Python 2.7 (make sure you have installed the right version). 
 
@@ -127,13 +127,13 @@ Or you can specify the path in args:
 
 ## How it Works
 
-When **LayoutCast.init(context);**, the application will start tiny http server in the background, and receive certain commands. Later on, the cast script running on your computer will communicate with your running app which is running through ADB TCP forward.
+When **LayoutCast.init(context);** called, the application will start tiny http server in the background, and receive certain commands. Later on, the cast script running on your computer will communicate with your running app which is running through ADB TCP forward.
 
-When the cast script runs, it will scan all possible ports on your phone to find the running LayoutCast server, and get the running application's resource list with its id, then compiled to `public.xml` that will be used later to keep resource id index consistent with the running application.
+When the cast script runs, it will scan all possible ports on your phone to find the running LayoutCast server, and get the running application's resource list with its id, then compiled to `public.xml`. In which, it will be used later to keep resource id index consistent with the running application.
 
-The cast script scans your project folder to find the `/res` folder, and all dependencies inside `/res` folder. You can run the **aapt** command to package all resources into **res.zip**, and then upload the zip file to the LayoutCast server to replace the resources of the running process. Then it calls the **Activity.recreate()** to restart the visible activity.
+The cast script scans your project folder to find the `/res` folder, and all dependencies inside `/res` folder. You can run the **aapt** command to package all resources into **res.zip**, and then upload the zip file to the LayoutCast server to replace the resources of the running process. Then, it calls the **Activity.recreate()** to restart the visible activity.
 
-Usually the activity will keep its running state in **onSaveInstanceState()** and restores after coming back later.
+Usually the activity will keep its running state in **onSaveInstanceState()** and restore after coming back later.
 
 ## Troubleshootings
 
