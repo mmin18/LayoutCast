@@ -374,7 +374,7 @@ def search_path(dir, filename):
         if '/androidTest/' in dirpath or '/.' in dirpath:
             continue
         if dir0 in dirnames and os.path.isfile(os.path.join(dirpath, filename)):
-            list.append(dirpath)
+            list.append(dirpath)    
     if len(list) == 1:
         return list[0]
     elif len(list) > 1:
@@ -390,7 +390,9 @@ def search_path(dir, filename):
                 maxt = lastModified
                 maxd = ddir
         return maxd
-    else:
+    elif os.path.exists(os.path.join(dir, 'common')):
+        return os.path.join(dir, 'common','debug')
+    else:    
         return os.path.join(dir, 'debug')
 
 if __name__ == "__main__":
@@ -537,11 +539,7 @@ if __name__ == "__main__":
             for dep in list_aar_projects(dir, deps):
                 aaptargs.append('-S')
                 aaptargs.append(dep)
-        for dep in deps:
-            rdir = resdir(dep)
-            if rdir:
-                aaptargs.append('-S')
-                aaptargs.append(rdir)
+        
         rdir = resdir(dir)
         if rdir:
             aaptargs.append('-S')
@@ -552,6 +550,11 @@ if __name__ == "__main__":
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
         aaptargs.append(android_jar)
+        for dep in deps:
+            rdir = resdir(dep)
+            if rdir:
+                aaptargs.append('-S')
+                aaptargs.append(rdir)
         cexec(aaptargs)
 
         cexec(['curl', '--silent', '-T', os.path.join(bindir, 'res.zip'), 'http://127.0.0.1:%d/pushres'%port])
@@ -580,14 +583,9 @@ if __name__ == "__main__":
                     if '/androidTest/' in dirpath or '/.' in dirpath:
                         continue
                     for fn in files:
-                        if fn=='classes.jar':
-                            classpath.append(os.path.join(dirpath, fn))
-                            if os.path.isdir(os.path.join(dirpath, 'libs')):
-                                for fn in os.listdir(os.path.join(dirpath, 'libs')):
-                                    if fn.endswith('.jar'):
-                                        fpath = os.path.join(dirpath, 'libs', fn)
-                                        if os.path.isfile(fpath):
-                                            classpath.append(fpath)
+                        if fn.endswith('.jar'):
+                            classpath.append(os.path.join(dirpath, fn));
+                        
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', '/')+'.class' or '$')
                 classpath.append(classesdir)
