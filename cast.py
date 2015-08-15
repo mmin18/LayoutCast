@@ -97,7 +97,7 @@ def __deps_list_gradle(list, project):
     for m in re.finditer(r'dependencies\s*\{', str):
         depends = balanced_braces(str[m.start():])
         for proj in re.findall(r'''compile project\(.*['"]:(.+)['"].*\)''', depends):
-            ideps.append(proj.replace(':', '/'))
+            ideps.append(proj.replace(':', os.path.sep))
     if len(ideps) == 0:
         return
 
@@ -132,8 +132,8 @@ def deps_list(dir):
 def manifestpath(dir):
     if os.path.isfile(os.path.join(dir, 'AndroidManifest.xml')):
         return os.path.join(dir, 'AndroidManifest.xml')
-    if os.path.isfile(os.path.join(dir, 'src/main/AndroidManifest.xml')):
-        return os.path.join(dir, 'src/main/AndroidManifest.xml')
+    if os.path.isfile(os.path.join(dir, 'src', 'main', 'AndroidManifest.xml')):
+        return os.path.join(dir, 'src', 'main', 'AndroidManifest.xml')
 
 def package_name(dir):
     path = manifestpath(dir)
@@ -181,7 +181,7 @@ def countResDir(dir):
 
 def resdir(dir):
     dir1 = os.path.join(dir, 'res')
-    dir2 = os.path.join(dir, 'src/main/res')
+    dir2 = os.path.join(dir, 'src', 'main', 'res')
     a = countResDir(dir1)
     b = countResDir(dir2)
     if b==0 and a==0:
@@ -195,7 +195,7 @@ def countSrcDir2(dir, lastBuild=0, list=None):
     count = 0
     lastModified = 0
     for dirpath, dirnames, files in os.walk(dir):
-        if '/androidTest/' in dirpath or '/.' in dirpath:
+        if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
             continue
         for fn in files:
             if fn.endswith('.java'):
@@ -208,7 +208,7 @@ def countSrcDir2(dir, lastBuild=0, list=None):
 
 def srcdir2(dir, lastBuild=0, list=None):
     dir1 = os.path.join(dir, 'src')
-    dir2 = os.path.join(dir, 'src/main/src')
+    dir2 = os.path.join(dir, 'src' ,'main', 'src')
     list1 = None
     list2 = None
     if list!=None:
@@ -264,7 +264,7 @@ def list_projects(dir):
             data = f.read()
             for line in re.findall(r'''include\s*(.+)''', data):
                 for proj in re.findall(r'''[\s,]+['"](.*?)['"]''', ','+line):
-                    dproj = (proj.startswith(':') and proj[1:] or proj).replace(':', '/')
+                    dproj = (proj.startswith(':') and proj[1:] or proj).replace(':', os.path.sep)
                     cdir = os.path.join(dir, dproj)
                     if package_name(cdir):
                         list.append(cdir)
@@ -276,15 +276,15 @@ def list_aar_projects(dir, deps):
     pnlist = [package_name(i) for i in deps]
     pnlist.append(package_name(dir))
     list1 = []
-    if os.path.isdir(os.path.join(dir, 'build/intermediates/incremental/mergeResources')):
-        for dirpath, dirnames, files in os.walk(os.path.join(dir, 'build/intermediates/incremental/mergeResources')):
-            if '/androidTest/' in dirpath:
+    if os.path.isdir(os.path.join(dir, 'build', 'intermediates', 'incremental', 'mergeResources')):
+        for dirpath, dirnames, files in os.walk(os.path.join(dir, 'build', 'intermediates', 'incremental', 'mergeResources')):
+            if re.findall(r'[/\\+]androidTest[/\\+]', dirpath):
                 continue
             for fn in files:
                 if fn=='merger.xml':
                     with open(os.path.join(dirpath, fn), 'r') as f:
                         data = f.read()
-                        for ppath in re.findall(r'''path="([^"]*?/res)"''', data):
+                        for ppath in re.findall(r'''path="([^"]*?[/\\+]res)"''', data):
                             if not ppath in list1:
                                 list1.append(ppath)
     list2 = []
@@ -426,11 +426,11 @@ def get_javac(dir):
 
 def search_path(dir, filename):
     dir0 = filename
-    if '/' in filename:
-        dir0 = filename[0:filename.index('/')]
+    if os.path.sep in filename:
+        dir0 = filename[0:filename.index(os.path.sep)]
     list = []
     for dirpath, dirnames, files in os.walk(dir):
-        if '/androidTest/' in dirpath or '/.' in dirpath:
+        if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
             continue
         if dir0 in dirnames and os.path.isfile(os.path.join(dirpath, filename)):
             list.append(dirpath)
@@ -528,7 +528,7 @@ if __name__ == "__main__":
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
 
     deps = deps_list(dir)
-    bindir = os.path.join(dir, is_gradle and 'build/lcast' or 'bin/lcast')
+    bindir = is_gradle and os.path.join(dir, 'build', 'lcast') or os.path.join(dir, 'bin', 'lcast')
 
     # check if the /res and /src has changed
     lastBuild = 0
@@ -645,7 +645,7 @@ if __name__ == "__main__":
                 darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
                 # TODO: use the max version
                 for dirpath, dirnames, files in os.walk(darr):
-                    if '/androidTest/' in dirpath or '/.' in dirpath:
+                    if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
                         continue
                     for fn in files:
                         if fn=='classes.jar':
@@ -657,7 +657,7 @@ if __name__ == "__main__":
                                         if os.path.isfile(fpath):
                                             classpath.append(fpath)
                 # R.class
-                classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', '/')+'.class' or '$')
+                classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', os.path.sep)+'.class' or '$')
                 classpath.append(classesdir)
             else:
                 # R.class
@@ -669,11 +669,11 @@ if __name__ == "__main__":
 
             javacargs = [javac, '-target', '1.7', '-source', '1.7']
             javacargs.append('-cp')
-            javacargs.append(os.path.pathsep.join(classpath))
+            javacargs.append(os.pathsep.join(classpath))
             javacargs.append('-d')
             javacargs.append(binclassesdir)
             javacargs.append('-sourcepath')
-            javacargs.append(os.path.pathsep.join(srcs))
+            javacargs.append(os.pathsep.join(srcs))
             javacargs.extend(msrclist)
             cexec(javacargs)
 
