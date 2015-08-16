@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50811'
+__version__ = '1.50816'
 __plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
@@ -570,9 +570,9 @@ if __name__ == "__main__":
         exit(0)
 
     if is_gradle:
-        print('cast %s:%d as gradle project with %s changed'%(packagename, port, targets))
+        print('cast %s:%d as gradle project with %s changed (v%s)'%(packagename, port, targets, __version__))
     else:
-        print('cast %s:%d as eclipse project with %s changed'%(packagename, port, targets))
+        print('cast %s:%d as eclipse project with %s changed (v%s)'%(packagename, port, targets, __version__))
 
     # prepare to reset
     if srcModified:
@@ -595,21 +595,21 @@ if __name__ == "__main__":
             print('aapt not found in %s/build-tools'%sdkdir)
             exit(1)
         aaptargs = [aaptpath, 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
-        if is_gradle:
-            for dep in list_aar_projects(dir, deps):
-                aaptargs.append('-S')
-                aaptargs.append(dep)
-        for dep in deps:
-            rdir = resdir(dep)
-            if rdir:
-                aaptargs.append('-S')
-                aaptargs.append(rdir)
+        aaptargs.append('-S')
+        aaptargs.append(binresdir)
         rdir = resdir(dir)
         if rdir:
             aaptargs.append('-S')
             aaptargs.append(rdir)
-        aaptargs.append('-S')
-        aaptargs.append(binresdir)
+        for dep in reversed(deps):
+            rdir = resdir(dep)
+            if rdir:
+                aaptargs.append('-S')
+                aaptargs.append(rdir)
+        if is_gradle:
+            for dep in reversed(list_aar_projects(dir, deps)):
+                aaptargs.append('-S')
+                aaptargs.append(dep)
         aaptargs.append('-M')
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
