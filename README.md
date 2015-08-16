@@ -1,6 +1,12 @@
-Android SDK sucks. It's so slow to build and run which waste me a lot of time every day.
+*Android SDK sucks. It's so slow to build and run which waste me a lot of time every day.*
 
-LayoutCast is a little tool to help with that, it will cast every changes in your Java source code or resources (including library project) to your phone within 5 sec, and does not restart the hold application.
+## Motivation
+
+Facebook Buck <http://github.com/facebook/buck> build is fast. In some cases, it is faster than LayoutCast due to its multi-process build. The biggest problem with Buck is, it requires you to change a lot of codes, and restructs your project in small modules. Indeed, it is troublesome to just make it work properly on the existing android project, especially if you have big project. I have tried using Buck build system instead of Gradle on my test project. However, it took me a week just to make it work.
+
+What I needs is a build tool that is easy to setup, fast as Buck, and provide a Run button in AndroidStudio. So I created LayoutCast.
+
+LayoutCast is a little tool to help with that, it will cast every changes in your Java source code or resources (including library project) to your phone or emulator within 5 sec, and does not restart your application.
 
 把代码和资源文件的改动直接同步到手机上，应用不需要重启。省去了编译运行漫长的等待，比较适合真机调试的时候使用。
 
@@ -11,20 +17,20 @@ Youtube demo video: <https://youtu.be/rc04LK2_suU>
 
 优酷: <http://v.youku.com/v_show/id_XMTMwNTUzOTQ3Mg>
 
-## Features and Limits
+## Features
 
 - Fast cast code and resource changes, usually less than 5 sec.
-- Cast does not reset the hole application. The running activity stack will be kept.
+- Cast does not reset your application. The running activity stack will be kept.
 - Easy to setup, only add few lines of code.
 - Support both eclipse and AndroidStudio project.
 - Provide a AndroidStudio plugin to click and cast.
 
-Limits:
+## Limitations
 
-- LayoutCast only support Mac (for now)
+- ~~LayoutCast only support Mac (for now)~~
 - Cast Java code only support ART runtime (Android 5.0)
 
-## Benchmark
+## Benchmarks
 
 Here is how it compared to Gradle and Facebook Buck:
 
@@ -34,34 +40,28 @@ The test machine is a 2015 MBP with a 2014 MotoX.
 
 The test project's apk is about 14.3MB, which contains 380k lines of java code and 86k lines of xml files.
 
-### About Facebook Buck
+## Get Started for AndroidStudio/Intellij
 
-Facebook Buck <http://github.com/facebook/buck> also build very fast. In some cases it's faster than LayoutCast due to it's multi-process build.
-
-The biggest problem is Buck requires you change a lot of code, and restruct your project in small modules. It's quiet painful to make it work on existing project, especially big ones. I tried to use Buck on the test project, which took me a week just to make it run.
-
-What I needs is a build tool that is easy to setup, fast as Buck, and provide a Run button in AndroidStudio. So I created LayoutCast.
-
-## Get Started for AndroidStudio
-
-### Install Plugin
+### 1. Install Plugin
 
 *If you have already done that, you can skip this step.*
 
-Install the IntelliJ plugin in your AndroidStudio by downloading <https://github.com/mmin18/LayoutCast/raw/master/ide/IDEAPlugin/IDEAPlugin.jar> and install plugin in `Preferences` > `Plugins` > `Install plugin from disk...`
+1. Download Android Studio/Intellij <https://github.com/mmin18/LayoutCast/raw/master/ide/IDEAPlugin/IDEAPlugin.jar>
+2. In Android Studio, go to `Preferences` > `Plugins` > `Install plugin from disk...`
+3. Choose the downloaded file from step #1 to install the plugin.
 
 After restart, you should find a button at right of the run section: ![TOOLBAR](images/sc_toolbar.png)
 
-### Dependency and startup changes
+### 2. Android Project & Build System Changes
 
-Next you need to setup your project. Add the dependency in your build.gradle:
+**First,** you need to setup your project. Add below dependency in your build.gradle:
 
 	dependencies {
 		compile 'com.github.mmin18.layoutcast:library:1.+@aar'
 		...
 	}
 
-Add the following code in your application onCreate(). And since LayoutCast is only necessary when you develop, you should always check if the BuildConfig.DEBUG == true.
+**Second,** add the following code in your main application class inside `onCreate()` method. And since LayoutCast only necessary when you develop, you should always check if `BuildConfig.DEBUG == true`.
 
 	public class MyApplication extends Application {
 		@Override
@@ -74,13 +74,13 @@ Add the following code in your application onCreate(). And since LayoutCast is o
 		}
 	}
 
-Also don't forget to check if this Application class is registered in AndroidManifest.xml:
+**Thrid,** don't forget to check if your Application class is registered in `AndroidManifest.xml`:
 
     <application
         android:name=".MyApplication"
 		...
 
-Add an activity in your manifest, this is only used to reset the running process to make the application restart and restore its activity stack.
+**Fourth,** add an activity in your manifest, this is only used to reset the running process to make the application restart and restore its activity stack.
 
 	<activity android:name="com.github.mmin18.layoutcast.ResetActivity" />
 
@@ -88,11 +88,11 @@ And make sure you have the network permission in your AndroidManifest.xml:
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-### Run and cast
+### 3. Run and cast
 
-You need to run the application first, then make some changes in your project.
+Run the application (in device or emulator), then try to make some changes for resources file or java file.
 
-Click the LayoutCast button in toolbar (on the right of Run button) or go to menu `Tools`> `Layout Cast`.
+After that, click the LayoutCast button in toolbar (on the right of Run button) / go to menu `Tools`> `Layout Cast`.
 
 It will show the result above status bar:
 
@@ -102,19 +102,19 @@ It will show the result above status bar:
 
 ## Get started for Eclipse
 
-### Prepare the cast script
+### 1. Prepare the cast script
 
-I haven't write the Eclipse plugin yet, so if you need to use it on a eclipse project, you need to use the command line.
+I haven't write the Eclipse plugin yet, so if you need to use it on a eclipse project, you can try to use the command line.
 
-It's a python 2.7 script which you can get here <https://raw.githubusercontent.com/mmin18/LayoutCast/master/cast.py>. You can put it in project root dir or anywhere you like.
+You can get the script here <https://raw.githubusercontent.com/mmin18/LayoutCast/master/cast.py>. Put the script in project root dir or anywhere you like. Since it is written in Python 2.7 (make sure you have installed the right version). 
 
-### Dependency and startup changes
+### 2. Android Project & Build System Changes
 
-Since it does not build with gradle, you need to manually download the library <https://github.com/mmin18/LayoutCast/raw/master/libs/lcast.jar> to your /libs folder.
+To get it work, we will need to download the LayoutCast library <https://github.com/mmin18/LayoutCast/raw/master/libs/lcast.jar> and put it to your `/libs` folder.
 
-Everything else is the same as AndroidStudio.
+The project structure will remain the same.
 
-### Run and cast
+### 3. Run and Cast
 
 Run the application first, and open terminal and execute **python cast.py** under your project's folder:
 
@@ -127,19 +127,17 @@ Or you can specify the path in args:
 
 ## How it Works
 
-When **LayoutCast.init(context);**, the application start a tiny http server in the background, and receives some certain commands.
+When **LayoutCast.init(context);**, the application will start tiny http server in the background, and receive certain commands. Later on, the cast script running on your computer will communicate with your running app which is running through ADB TCP forward.
 
-The cast script running on your computer communicates with the apps running on your phone through ADB TCP forward.
+When the cast script runs, it will scan all possible ports on your phone to find the running LayoutCast server, and get the running application's resource list with its id, then compiled to `public.xml` that will be used later to keep resource id index consistent with the running application.
 
-When the cast script runs, it scans all possible ports on your phone to find the running LayoutCast server, and get the running application's resource list with its id, in which is compiled to public.xml that will be used later to keep resource id index consistent with the running application.
+The cast script scans your project folder to find the `/res` folder, and all dependencies inside `/res` folder. You can run the **aapt** command to package all resources into **res.zip**, and then upload the zip file to the LayoutCast server to replace the resources of the running process. Then it calls the **Activity.recreate()** to restart the visible activity.
 
-It than scans your project folder to find the /res folder, and all dependencies's /res folder. Run the **aapt** command to package all resources into **res.zip**, and then upload the zip file to the LayoutCast server to replace the resources of the running process. Then it calls the **Activity.recreate()** to restart the visible activity.
-
-Usually the activity will keep its running state in **onSaveInstanceState()** and restores when it come back later.
+Usually the activity will keep its running state in **onSaveInstanceState()** and restores after coming back later.
 
 ## Troubleshooting
 
-- It can only find /src folder under <project>/src or <project>/src/main/java
-- It can only find /res folder under <project>/res or <project>/src/main/res
+- It can only find `/src` folder under `<project>/src` or `<project>/src/main/java`
+- It can only find `/res` folder under `<project>/res` or `<project>/src/main/res`
 - You can add new or replace resources, but you can't delete or rename resources (for now)
-- If cast failed, clean your project, remove /bin and /build and rebuild again may solve the problem
+- If cast failed, clean your project, remove `/bin` and `/build` and rebuild again may solve the problem
