@@ -31,6 +31,21 @@ def which(program):
 
     return None
 
+def cexec(args, failOnError = True, addPath = None):
+    env = None
+    if addPath:
+        import copy
+        env = copy.copy(os.environ)
+        env['PATH'] = addPath + os.path.pathsep + env['PATH']
+    p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
+    output, err = p.communicate()
+    if failOnError and p.returncode != 0:
+        print('Fail to exec %s'%args)
+        print(output)
+        print(err)
+        exit(1)
+    return output
+
 def curl(url, body=None, ignoreError=False):
     import sys
     try:
@@ -294,16 +309,6 @@ def list_aar_projects(dir, deps):
         if pn and not pn in pnlist:
             list2.append(ppath)
     return list2
-
-def cexec(args, failOnError = True):
-    p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    output, err = p.communicate()
-    if failOnError and p.returncode != 0:
-        print('Fail to exec %s'%args)
-        print(output)
-        print(err)
-        exit(1)
-    return output
 
 def get_android_jar(path):
     if not os.path.isdir(path):
@@ -684,7 +689,11 @@ if __name__ == "__main__":
             dxoutput = os.path.join(bindir, 'classes.dex')
             if os.path.isfile(dxoutput):
                 os.remove(dxoutput)
-            cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir])
+            addPath = None
+            if os.name == 'nt':
+                # fix system32 java.exe issue
+                addPath = os.path.abspath(os.path.join(javac, os.pardir))
+            cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir], addPath = addPath)
 
             with open(dxoutput, 'rb') as fp:
                 curl('http://127.0.0.1:%d/pushdex'%port, body=fp.read())
