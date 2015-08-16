@@ -222,23 +222,16 @@ def countSrcDir2(dir, lastBuild=0, list=None):
     return (count, lastModified)
 
 def srcdir2(dir, lastBuild=0, list=None):
-    dir1 = os.path.join(dir, 'src')
-    dir2 = os.path.join(dir, 'src' ,'main', 'src')
-    list1 = None
-    list2 = None
-    if list!=None:
-        list1 = []
-        list2 = []
-    (a, ma) = countSrcDir2(dir1, lastBuild=lastBuild, list=list1)
-    (b, mb) = countSrcDir2(dir2, lastBuild=lastBuild, list=list2)
-    if b>a:
+    for srcdir in [os.path.join(dir, 'src', 'main', 'java'), os.path.join(dir, 'src')]:
+        olist = None
         if list!=None:
-            list.extend(list2)
-        return (dir2, b, mb)
-    else:
-        if list!=None:
-            list.extend(list1)
-        return (dir1, a, ma)
+            olist = []
+        (count, lastModified) = countSrcDir2(srcdir, lastBuild=lastBuild, list=olist)
+        if count>0:
+            if list!=None:
+                list.extend(olist)
+            return (srcdir, count, lastModified)
+    return (None, 0, 0)
 
 def libdir(dir):
     ddir = os.path.join(dir, 'libs')
@@ -560,8 +553,9 @@ if __name__ == "__main__":
                         if os.path.isfile(fpath) and not fn.startswith('.'):
                             latestResModified = max(latestResModified, os.path.getmtime(fpath))
         (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
-        srcs.append(sdir)
-        latestSrcModified = max(latestSrcModified, smt)
+        if sdir:
+            srcs.append(sdir)
+            latestSrcModified = max(latestSrcModified, smt)
     resModified = latestResModified > lastBuild
     srcModified = latestSrcModified > lastBuild
     targets = ''
