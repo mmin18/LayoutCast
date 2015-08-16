@@ -62,6 +62,19 @@ def curl(url, body=None, ignoreError=False):
             print(e)
             exit(-1)
 
+def open_as_text(path):
+    if not path or not os.path.isfile(path):
+        return ''
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+            if type(data) == type(''):
+                return data
+    except Exception as e:
+        pass
+    print('fail to open %s', path)
+    return ''
+
 def is_gradle_project(dir):
     return os.path.isfile(os.path.join(dir, 'build.gradle'))
 
@@ -103,9 +116,7 @@ def __deps_list_eclipse(list, project):
                 list.append(absdep)
 
 def __deps_list_gradle(list, project):
-    str = ''
-    with open(os.path.join(project, 'build.gradle'), 'r') as f:
-        str = f.read()
+    str = open_as_text(os.path.join(project, 'build.gradle'))
     str = remove_comments(str)
     ideps = []
     # for depends in re.findall(r'dependencies\s*\{.*?\}', str, re.DOTALL | re.MULTILINE):
@@ -152,10 +163,9 @@ def manifestpath(dir):
 
 def package_name(dir):
     path = manifestpath(dir)
-    if path and os.path.isfile(path):
-        with open(path, 'r') as manifestfile:
-            data = manifestfile.read()
-            return re.findall('package=\"([\w\d_\.]+)\"', data)[0]
+    data = open_as_text(path)
+    for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
+        return pn
 
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
@@ -242,16 +252,14 @@ def libdir(dir):
 
 def is_launchable_project(dir):
     if is_gradle_project(dir):
-        with open(os.path.join(dir, 'build.gradle'), 'r') as buildfile:
-            data = buildfile.read()
-            data = remove_comments(data)
-            if re.findall(r'''apply\s+plugin:\s*['"]com.android.application['"]''', data, re.MULTILINE):
-                return True
+        data = open_as_text(os.path.join(dir, 'build.gradle'))
+        data = remove_comments(data)
+        if re.findall(r'''apply\s+plugin:\s*['"]com.android.application['"]''', data, re.MULTILINE):
+            return True
     elif os.path.isfile(os.path.join(dir, 'project.properties')):
-        with open(os.path.join(dir, 'project.properties'), 'r') as propfile:
-            data = propfile.read()
-            if re.findall(r'''^\s*target\s*=.*$''', data, re.MULTILINE) and not re.findall(r'''^\s*android.library\s*=\s*true\s*$''', data, re.MULTILINE):
-                return True
+        data = open_as_text(os.path.join(dir, 'project.properties'))
+        if re.findall(r'''^\s*target\s*=.*$''', data, re.MULTILINE) and not re.findall(r'''^\s*android.library\s*=\s*true\s*$''', data, re.MULTILINE):
+            return True
     return False
 
 def __append_project(list, dir, depth):
@@ -268,14 +276,13 @@ def __append_project(list, dir, depth):
 def list_projects(dir):
     list = []
     if os.path.isfile(os.path.join(dir, 'settings.gradle')):
-        with open(os.path.join(dir, 'settings.gradle'), 'r') as f:
-            data = f.read()
-            for line in re.findall(r'''include\s*(.+)''', data):
-                for proj in re.findall(r'''[\s,]+['"](.*?)['"]''', ','+line):
-                    dproj = (proj.startswith(':') and proj[1:] or proj).replace(':', os.path.sep)
-                    cdir = os.path.join(dir, dproj)
-                    if package_name(cdir):
-                        list.append(cdir)
+        data = open_as_text(os.path.join(dir, 'settings.gradle'))
+        for line in re.findall(r'''include\s*(.+)''', data):
+            for proj in re.findall(r'''[\s,]+['"](.*?)['"]''', ','+line):
+                dproj = (proj.startswith(':') and proj[1:] or proj).replace(':', os.path.sep)
+                cdir = os.path.join(dir, dproj)
+                if package_name(cdir):
+                    list.append(cdir)
     else:
         __append_project(list, dir, 2)
     return list
@@ -290,11 +297,10 @@ def list_aar_projects(dir, deps):
                 continue
             for fn in files:
                 if fn=='merger.xml':
-                    with open(os.path.join(dirpath, fn), 'r') as f:
-                        data = f.read()
-                        for ppath in re.findall(r'''path="([^"]*?[/\\+]res)"''', data):
-                            if not ppath in list1:
-                                list1.append(ppath)
+                    data = open_as_text(os.path.join(dirpath, fn))
+                    for ppath in re.findall(r'''path="([^"]*?[/\\+]res)"''', data):
+                        if not ppath in list1:
+                            list1.append(ppath)
     list2 = []
     for ppath in list1:
         parpath = os.path.abspath(os.path.join(ppath, os.pardir))
@@ -314,14 +320,13 @@ def get_android_jar(path):
     for pd in os.listdir(platforms):
         pd = os.path.join(platforms, pd)
         if os.path.isdir(pd) and os.path.isfile(os.path.join(pd, 'source.properties')) and os.path.isfile(os.path.join(pd, 'android.jar')):
-            with open(os.path.join(pd, 'source.properties'), 'r') as f:
-                s = f.read()
-                m = re.search(r'^AndroidVersion.ApiLevel\s*[=:]\s*(.*)$', s, re.MULTILINE)
-                if m:
-                    a = int(m.group(1))
-                    if a > api:
-                        api = a
-                        result = os.path.join(pd, 'android.jar')
+            s = open_as_text(os.path.join(pd, 'source.properties'))
+            m = re.search(r'^AndroidVersion.ApiLevel\s*[=:]\s*(.*)$', s, re.MULTILINE)
+            if m:
+                a = int(m.group(1))
+                if a > api:
+                    api = a
+                    result = os.path.join(pd, 'android.jar')
     return result
 
 def get_adb(path):
@@ -356,14 +361,12 @@ def get_dx(path):
         return minp
 
 def get_android_sdk(dir, condf = get_android_jar):
-    if os.path.isfile(os.path.join(dir, 'local.properties')):
-        with open(os.path.join(dir, 'local.properties'), 'r') as f:
-            s = f.read()
-            m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
-            if m:
-                val = m.group(1).replace('\\:', ':').replace('\\=', '=').replace('\\\\', '\\')
-                if os.path.isdir(val) and condf(val):
-                    return val
+    s = open_as_text(os.path.join(dir, 'local.properties'))
+    m = re.search(r'^sdk.dir\s*[=:]\s*(.*)$', s, re.MULTILINE)
+    if m:
+        val = m.group(1).replace('\\:', ':').replace('\\=', '=').replace('\\\\', '\\')
+        if os.path.isdir(val) and condf(val):
+            return val
 
     path = os.getenv('ANDROID_HOME')
     if path and os.path.isdir(path) and condf(path):
