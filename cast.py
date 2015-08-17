@@ -450,6 +450,8 @@ def search_path(dir, filename):
                 maxt = lastModified
                 maxd = ddir
         return maxd
+    elif os.path.exists(os.path.join(dir, 'common')):
+       return os.path.join(dir, 'common','debug')
     else:
         return os.path.join(dir, 'debug')
 
