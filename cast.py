@@ -453,6 +453,32 @@ def search_path(dir, filename):
     else:
         return os.path.join(dir, 'debug')
 
+#~/.gralde/caches
+def get_gradlecaches_path():
+    from os.path import expanduser
+    home = expanduser("~")
+    return os.path.join(home,'.gradle','caches')
+
+def get_cachesed_libs(project):
+    str = open_as_text(os.path.join(project, 'build.gradle'))
+    str = remove_comments(str)
+    caches_lib_path = []
+    #find remote depedence lib
+    for m in re.finditer(r'dependencies\s*\{', str):
+        depends = balanced_braces(str[m.start():])
+
+        for libfullname in re.findall(r'''compile (?!project|files|fileTree)['"](.+)['"]''', depends):
+            libnames = libfullname.replace(':','/')
+            for dirpath, dirnames, files in os.walk(get_gradlecaches_path()):
+                if libnames in dirpath:
+                    for subdirpath, subdirnames, subfiles in os.walk(dirpath):
+                        for fn in subfiles:
+                            if fn and fn.endswith('.jar'):
+                                if(os.path.join(subdirpath,fn) not in caches_lib_path) and not fn.endswith('-sources.jar') :
+                                    caches_lib_path.append(os.path.join(subdirpath,fn))
+    return caches_lib_path
+            
+
 if __name__ == "__main__":
 
     dir = '.'
@@ -655,6 +681,8 @@ if __name__ == "__main__":
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', os.path.sep)+'.class' or '$')
                 classpath.append(classesdir)
+            for dep in  adeps:
+                classpath.extend(get_cachesed_libs(dep))
             else:
                 # R.class
                 classpath.append(os.path.join(dir, 'bin', 'classes'))
