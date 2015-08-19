@@ -9,6 +9,7 @@ from distutils.version import LooseVersion
 import argparse
 import sys
 import os
+import io
 import re
 import time
 import shutil
@@ -65,14 +66,10 @@ def curl(url, body=None, ignoreError=False):
 def open_as_text(path):
     if not path or not os.path.isfile(path):
         return ''
-    try:
-        with open(path, 'rb') as f:
-            data = f.read()
-            if type(data) == type(''):
-                return data
-    except Exception as e:
-        pass
-    print('fail to open %s', path)
+    with io.open(path, 'r', errors='replace') as f:
+        data = f.read()
+        return data
+    print('fail to open %s'%path)
     return ''
 
 def is_gradle_project(dir):
@@ -122,7 +119,7 @@ def __deps_list_gradle(list, project):
     # for depends in re.findall(r'dependencies\s*\{.*?\}', str, re.DOTALL | re.MULTILINE):
     for m in re.finditer(r'dependencies\s*\{', str):
         depends = balanced_braces(str[m.start():])
-        for proj in re.findall(r'''compile project\(.*['"]:(.+)['"].*\)''', depends):
+        for proj in re.findall(r'''compile\s+project\s*\(.*['"]:(.+)['"].*\)''', depends):
             ideps.append(proj.replace(':', os.path.sep))
     if len(ideps) == 0:
         return
