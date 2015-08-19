@@ -474,7 +474,20 @@ def get_cachesed_libs(project):
                                 if(os.path.join(subdirpath,fn) not in caches_lib_path) and not fn.endswith('-sources.jar') :
                                     caches_lib_path.append(os.path.join(subdirpath,fn))
     return caches_lib_path
-            
+    
+#get the depedence lib
+def pre_dexed_exist():
+    pre_dexed_path = os.path.join(dir,'build', 'intermediates', 'pre-dexed')
+    return os.path.exists(pre_dexed_path)
+
+
+def get_pre_dexed_lib(list):
+    curpath = os.path.dirname(os.path.abspath('__file__'))
+    filepath = os.path.join(curpath,'build','intermediates','dex-cache','cache.xml');
+    if filepath:
+            data = open_as_text(filepath)
+            for jars in re.findall(r'''jar="(.+)"''',data):
+                list.append(jars)
 
 if __name__ == "__main__":
 
@@ -667,19 +680,23 @@ if __name__ == "__main__":
                         if fjar.endswith('.jar'):
                             classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
-                darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
-                # TODO: use the max version
-                for dirpath, dirnames, files in os.walk(darr):
-                    if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
-                        continue
-                    for fn in files:
-                        if fn.endswith('.jar'):
-                            classpath.append(os.path.join(dirpath, fn))
+                if pre_dexed_exist():
+                    print 'pre_dexed_exist'
+                    get_pre_dexed_lib(classpath)
+                else:
+                    darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
+                    # TODO: use the max version
+                    for dirpath, dirnames, files in os.walk(darr):
+                        if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
+                            continue
+                        for fn in files:
+                            if fn.endswith('.jar'):
+                                classpath.append(os.path.join(dirpath, fn))
+                    for dep in  adeps:
+                        classpath.extend(get_cachesed_libs(dep))
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', os.path.sep)+'.class' or '$')
                 classpath.append(classesdir)
-            for dep in  adeps:
-                classpath.extend(get_cachesed_libs(dep))
             else:
                 # R.class
                 classpath.append(os.path.join(dir, 'bin', 'classes'))
