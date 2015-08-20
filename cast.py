@@ -164,6 +164,30 @@ def package_name(dir):
     for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
         return pn
 
+def package_name_fromapk(dir,sdkdir):
+    apkpath = os.path.join(dir,'build','outputs','apk')
+    #Get the lastmodified *.apk file
+    lastModified = 0
+    maxt = 0
+    maxd = None
+    for dirpath, dirnames, files in os.walk(apkpath):
+        for fn in files:
+            if fn.endswith('.apk') and not fn.endswith('-unaligned.apk'):
+                lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+                if lastModified > maxt:
+                    maxt = lastModified
+                    maxd = os.path.join(dirpath, fn)
+    #Get the package name from maxd           
+    aaptpath = get_aapt(sdkdir)
+    if not aaptpath:
+        print('aapt not found in %s/build-tools'%sdkdir)
+        exit(1)
+    aaptargs = [aaptpath, 'dump','badging', maxd]
+    aaptargsstr = ' '.join(aaptargs)
+    cmdout = os.popen(aaptargsstr).read()            
+    for pn in re.findall('package: name=\'([^\']*)\'',cmdout):
+        return pn
+
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
         return 2
@@ -512,20 +536,20 @@ if __name__ == "__main__":
 
     projlist = [i for i in list_projects(dir) if is_launchable_project(i)]
 
-    if not projlist:
-        print('no valid android project found in '+os.path.abspath(dir))
-        exit(1)
-
-    pnlist = [package_name(i) for i in projlist]
-    portlist = [0 for i in pnlist]
-    stlist = [-1 for i in pnlist]
-
     if not sdkdir:
         sdkdir = get_android_sdk(dir)
         if not sdkdir:
             print('android sdk not found, specify in local.properties or export ANDROID_HOME')
             exit(1)
 
+    if not projlist:
+        print('no valid android project found in '+os.path.abspath(dir))
+        exit(1)
+
+    pnlist = [package_name_fromapk(i,sdkdir) for i in projlist]
+    portlist = [0 for i in pnlist]
+    stlist = [-1 for i in pnlist]
+   
     adbpath = get_adb(sdkdir)
     if not adbpath:
         print('adb not found in %s/platform-tools'%sdkdir)
