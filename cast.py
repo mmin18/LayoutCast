@@ -32,7 +32,14 @@ def which(program):
 
     return None
 
-def cexec(args, failOnError = True, addPath = None):
+def cexec_fail_exit(args, code, stdout, stderr):
+    if code != 0:
+        print('Fail to exec %s'%args)
+        print(stdout)
+        print(stderr)
+        exit(1)
+
+def cexec(args, callback = cexec_fail_exit, addPath = None):
     env = None
     if addPath:
         import copy
@@ -40,11 +47,8 @@ def cexec(args, failOnError = True, addPath = None):
         env['PATH'] = addPath + os.path.pathsep + env['PATH']
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
     output, err = p.communicate()
-    if failOnError and p.returncode != 0:
-        print('Fail to exec %s'%args)
-        print(output)
-        print(err)
-        exit(1)
+    if cexec_fail_exit:
+        cexec_fail_exit(args, p.returncode, output, err)
     return output
 
 def curl(url, body=None, ignoreError=False):
@@ -181,7 +185,7 @@ def package_name_fromapk(dir, sdkdir):
                         maxd = os.path.join(dirpath, fn)
         if maxd:
             aaptargs = [aaptpath, 'dump','badging', maxd]
-            output = cexec(aaptargs, failOnError=False)
+            output = cexec(aaptargs, callback=None)
             for pn in re.findall('package: name=\'([^\']+)\'', output):
                 return pn
     return package_name(dir)
@@ -584,7 +588,7 @@ if __name__ == "__main__":
         packagename = pnlist[i]
     for i in range(0, 10):
         if (41128+i) != port:
-            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
     if port==0:
         exit(1)
 
@@ -766,7 +770,7 @@ if __name__ == "__main__":
 
     curl('http://127.0.0.1:%d/lcast'%port)
 
-    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
+    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None)
 
     elapsetime = time.time() - starttime
     print('finished in %dms'%(elapsetime*1000))
