@@ -474,44 +474,52 @@ def search_path(dir, filename):
     else:
         return os.path.join(dir, 'debug')
 
-#~/.gralde/caches
-def get_gradlecaches_path():
-    from os.path import expanduser
-    home = expanduser("~")
-    return os.path.join(home,'.gradle','caches')
+def get_maven_libs(projs):
+    maven_deps = []
+    for proj in projs:
+        str = open_as_text(os.path.join(proj, 'build.gradle'))
+        str = remove_comments(str)
+        for m in re.finditer(r'dependencies\s*\{', str):
+            depends = balanced_braces(str[m.start():])
+            for mvndep in re.findall(r'''compile\s+['"](.+:.+:.+)(?:@*)?['"]''', depends):
+                mvndeps = mvndep.split(':')
+                if not mvndeps in maven_deps:
+                    maven_deps.append(mvndeps)
+    return maven_deps
 
-def get_cachesed_libs(project):
-    str = open_as_text(os.path.join(project, 'build.gradle'))
-    str = remove_comments(str)
-    caches_lib_path = []
-    #find remote depedence lib
-    for m in re.finditer(r'dependencies\s*\{', str):
-        depends = balanced_braces(str[m.start():])
-
-        for libfullname in re.findall(r'''compile (?!project|files|fileTree)['"](.+)['"]''', depends):
-            libnames = libfullname.replace(':','/')
-            for dirpath, dirnames, files in os.walk(get_gradlecaches_path()):
-                if libnames in dirpath:
-                    for subdirpath, subdirnames, subfiles in os.walk(dirpath):
-                        for fn in subfiles:
-                            if fn and fn.endswith('.jar'):
-                                if(os.path.join(subdirpath,fn) not in caches_lib_path) and not fn.endswith('-sources.jar') :
-                                    caches_lib_path.append(os.path.join(subdirpath,fn))
-    return caches_lib_path
-    
-#get the depedence lib
-def pre_dexed_exist():
-    pre_dexed_path = os.path.join(dir,'build', 'intermediates', 'pre-dexed')
-    return os.path.exists(pre_dexed_path)
-
-
-def get_pre_dexed_lib(list):
-    curpath = os.path.dirname(os.path.abspath('__file__'))
-    filepath = os.path.join(curpath,'build','intermediates','dex-cache','cache.xml');
-    if filepath:
-            data = open_as_text(filepath)
-            for jars in re.findall(r'''jar="(.+)"''',data):
-                list.append(jars)
+def get_maven_jars(libs):
+    if not libs:
+        return []
+    jars = []
+    maven_path_prefix = []
+    # ~/.gralde/caches
+    gradle_home = os.path.join(os.path.expanduser('~'), '.gradle', 'caches')
+    for dirpath, dirnames, files in os.walk(gradle_home):
+        # search in ~/.gradle/**/GROUP_ID/ARTIFACT_ID/VERSION/**/*.jar
+        for mvndeps in libs:
+            if mvndeps[0] in dirnames:
+                dir1 = os.path.join(dirpath, mvndeps[0], mvndeps[1])
+                if os.path.isdir(dir1):
+                    dir2 = os.path.join(dir1, mvndeps[2])
+                    if os.path.isdir(dir2):
+                        maven_path_prefix.append(dir2)
+                    else:
+                        prefix = mvndeps[2]
+                        if '+' in prefix:
+                            prefix = prefix[0:prefix.index('+')]
+                        maxdir = ''
+                        for subd in os.listdir(dir1):
+                            if subd.startswith(prefix) and subd>maxdir:
+                                maxdir = subd
+                        if maxdir:
+                            maven_path_prefix.append(os.path.join(dir1, maxdir))
+        for dirprefix in maven_path_prefix:
+            if dirpath.startswith(dirprefix):
+                for fn in files:
+                    if fn.endswith('.jar') and not fn.startswith('.') and not fn.endswith('-sources.jar') and not fn.endswith('-javadoc.jar'):
+                        jars.append(os.path.join(dirpath, fn))
+                break
+    return jars
 
 if __name__ == "__main__":
 
@@ -704,20 +712,17 @@ if __name__ == "__main__":
                         if fjar.endswith('.jar'):
                             classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
-                if pre_dexed_exist():
-                    print 'pre_dexed_exist'
-                    get_pre_dexed_lib(classpath)
-                else:
-                    darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
-                    # TODO: use the max version
-                    for dirpath, dirnames, files in os.walk(darr):
-                        if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
-                            continue
-                        for fn in files:
-                            if fn.endswith('.jar'):
-                                classpath.append(os.path.join(dirpath, fn))
-                    for dep in  adeps:
-                        classpath.extend(get_cachesed_libs(dep))
+                # jars from maven cache
+                classpath.extend(get_maven_jars(get_maven_libs(adeps)))
+                # aars from exploded-aar
+                darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
+                # TODO: use the max version
+                for dirpath, dirnames, files in os.walk(darr):
+                    if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
+                        continue
+                    for fn in files:
+                        if fn.endswith('.jar'):
+                            classpath.append(os.path.join(dirpath, fn))
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', os.path.sep)+'.class' or '$')
                 classpath.append(classesdir)
