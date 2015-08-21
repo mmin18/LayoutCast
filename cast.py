@@ -164,29 +164,27 @@ def package_name(dir):
     for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
         return pn
 
-def package_name_fromapk(dir,sdkdir):
-    apkpath = os.path.join(dir,'build','outputs','apk')
-    #Get the lastmodified *.apk file
-    lastModified = 0
-    maxt = 0
-    maxd = None
-    for dirpath, dirnames, files in os.walk(apkpath):
-        for fn in files:
-            if fn.endswith('.apk') and not fn.endswith('-unaligned.apk'):
-                lastModified = os.path.getmtime(os.path.join(dirpath, fn))
-                if lastModified > maxt:
-                    maxt = lastModified
-                    maxd = os.path.join(dirpath, fn)
-    #Get the package name from maxd           
+def package_name_fromapk(dir, sdkdir):
+    #Get the package name from maxd
     aaptpath = get_aapt(sdkdir)
-    if not aaptpath:
-        print('aapt not found in %s/build-tools'%sdkdir)
-        exit(1)
-    aaptargs = [aaptpath, 'dump','badging', maxd]
-    aaptargsstr = ' '.join(aaptargs)
-    cmdout = os.popen(aaptargsstr).read()            
-    for pn in re.findall('package: name=\'([^\']*)\'',cmdout):
-        return pn
+    if aaptpath:
+        apkpath = os.path.join(dir,'build','outputs','apk')
+        #Get the lastmodified *.apk file
+        maxt = 0
+        maxd = None
+        for dirpath, dirnames, files in os.walk(apkpath):
+            for fn in files:
+                if fn.endswith('.apk') and not fn.endswith('-unaligned.apk') and not fn.endswith('-unsigned.apk'):
+                    lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+                    if lastModified > maxt:
+                        maxt = lastModified
+                        maxd = os.path.join(dirpath, fn)
+        if maxd:
+            aaptargs = [aaptpath, 'dump','badging', maxd]
+            output = cexec(aaptargs, failOnError=False)
+            for pn in re.findall('package: name=\'([^\']+)\'', output):
+                return pn
+    return package_name(dir)
 
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
