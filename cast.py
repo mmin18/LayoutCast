@@ -9,6 +9,7 @@ from distutils.version import LooseVersion
 import argparse
 import sys
 import os
+import io
 import re
 import time
 import shutil
@@ -65,14 +66,10 @@ def curl(url, body=None, ignoreError=False):
 def open_as_text(path):
     if not path or not os.path.isfile(path):
         return ''
-    try:
-        with open(path, 'rb') as f:
-            data = f.read()
-            if type(data) == type(''):
-                return data
-    except Exception as e:
-        pass
-    print('fail to open %s', path)
+    with io.open(path, 'r', errors='replace') as f:
+        data = f.read()
+        return data
+    print('fail to open %s'%path)
     return ''
 
 def is_gradle_project(dir):
@@ -122,7 +119,7 @@ def __deps_list_gradle(list, project):
     # for depends in re.findall(r'dependencies\s*\{.*?\}', str, re.DOTALL | re.MULTILINE):
     for m in re.finditer(r'dependencies\s*\{', str):
         depends = balanced_braces(str[m.start():])
-        for proj in re.findall(r'''compile project\(.*['"]:(.+)['"].*\)''', depends):
+        for proj in re.findall(r'''compile\s+project\s*\(.*['"]:(.+)['"].*\)''', depends):
             ideps.append(proj.replace(':', os.path.sep))
     if len(ideps) == 0:
         return
@@ -165,6 +162,30 @@ def package_name(dir):
     path = manifestpath(dir)
     data = open_as_text(path)
     for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
+        return pn
+
+def package_name_fromapk(dir,sdkdir):
+    apkpath = os.path.join(dir,'build','outputs','apk')
+    #Get the lastmodified *.apk file
+    lastModified = 0
+    maxt = 0
+    maxd = None
+    for dirpath, dirnames, files in os.walk(apkpath):
+        for fn in files:
+            if fn.endswith('.apk') and not fn.endswith('-unaligned.apk'):
+                lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+                if lastModified > maxt:
+                    maxt = lastModified
+                    maxd = os.path.join(dirpath, fn)
+    #Get the package name from maxd           
+    aaptpath = get_aapt(sdkdir)
+    if not aaptpath:
+        print('aapt not found in %s/build-tools'%sdkdir)
+        exit(1)
+    aaptargs = [aaptpath, 'dump','badging', maxd]
+    aaptargsstr = ' '.join(aaptargs)
+    cmdout = os.popen(aaptargsstr).read()            
+    for pn in re.findall('package: name=\'([^\']*)\'',cmdout):
         return pn
 
 def isResName(name):
@@ -477,7 +498,20 @@ def get_cachesed_libs(project):
                                 if(os.path.join(subdirpath,fn) not in caches_lib_path) and not fn.endswith('-sources.jar') :
                                     caches_lib_path.append(os.path.join(subdirpath,fn))
     return caches_lib_path
-            
+    
+#get the depedence lib
+def pre_dexed_exist():
+    pre_dexed_path = os.path.join(dir,'build', 'intermediates', 'pre-dexed')
+    return os.path.exists(pre_dexed_path)
+
+
+def get_pre_dexed_lib(list):
+    curpath = os.path.dirname(os.path.abspath('__file__'))
+    filepath = os.path.join(curpath,'build','intermediates','dex-cache','cache.xml');
+    if filepath:
+            data = open_as_text(filepath)
+            for jars in re.findall(r'''jar="(.+)"''',data):
+                list.append(jars)
 
 if __name__ == "__main__":
 
@@ -502,20 +536,20 @@ if __name__ == "__main__":
 
     projlist = [i for i in list_projects(dir) if is_launchable_project(i)]
 
-    if not projlist:
-        print('no valid android project found in '+os.path.abspath(dir))
-        exit(1)
-
-    pnlist = [package_name(i) for i in projlist]
-    portlist = [0 for i in pnlist]
-    stlist = [-1 for i in pnlist]
-
     if not sdkdir:
         sdkdir = get_android_sdk(dir)
         if not sdkdir:
             print('android sdk not found, specify in local.properties or export ANDROID_HOME')
             exit(1)
 
+    if not projlist:
+        print('no valid android project found in '+os.path.abspath(dir))
+        exit(1)
+
+    pnlist = [package_name_fromapk(i,sdkdir) for i in projlist]
+    portlist = [0 for i in pnlist]
+    stlist = [-1 for i in pnlist]
+   
     adbpath = get_adb(sdkdir)
     if not adbpath:
         print('adb not found in %s/platform-tools'%sdkdir)
@@ -670,19 +704,23 @@ if __name__ == "__main__":
                         if fjar.endswith('.jar'):
                             classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
-                darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
-                # TODO: use the max version
-                for dirpath, dirnames, files in os.walk(darr):
-                    if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
-                        continue
-                    for fn in files:
-                        if fn.endswith('.jar'):
-                            classpath.append(os.path.join(dirpath, fn))
+                if pre_dexed_exist():
+                    print 'pre_dexed_exist'
+                    get_pre_dexed_lib(classpath)
+                else:
+                    darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
+                    # TODO: use the max version
+                    for dirpath, dirnames, files in os.walk(darr):
+                        if re.findall(r'[/\\+]androidTest[/\\+]', dirpath) or '/.' in dirpath:
+                            continue
+                        for fn in files:
+                            if fn.endswith('.jar'):
+                                classpath.append(os.path.join(dirpath, fn))
+                    for dep in  adeps:
+                        classpath.extend(get_cachesed_libs(dep))
                 # R.class
                 classesdir = search_path(os.path.join(dir, 'build', 'intermediates', 'classes'), launcher and launcher.replace('.', os.path.sep)+'.class' or '$')
                 classpath.append(classesdir)
-            for dep in  adeps:
-                classpath.extend(get_cachesed_libs(dep))
             else:
                 # R.class
                 classpath.append(os.path.join(dir, 'bin', 'classes'))
