@@ -604,7 +604,7 @@ if __name__ == "__main__":
         for fn in os.listdir(rdir):
             if fn.endswith('.apk') and not '-androidTest' in fn:
                 fpath = os.path.join(rdir, fn)
-                lastBuild = os.path.getmtime(fpath)
+                lastBuild = max(lastBuild, os.path.getmtime(fpath))
     adeps = []
     adeps.extend(deps)
     adeps.append(dir)
