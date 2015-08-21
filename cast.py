@@ -13,6 +13,7 @@ import io
 import re
 import time
 import shutil
+import json
 
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def is_exe(fpath):
@@ -47,8 +48,8 @@ def cexec(args, callback = cexec_fail_exit, addPath = None):
         env['PATH'] = addPath + os.path.pathsep + env['PATH']
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
     output, err = p.communicate()
-    if cexec_fail_exit:
-        cexec_fail_exit(args, p.returncode, output, err)
+    if callback:
+        callback(args, p.returncode, output, err)
     return output
 
 def curl(url, body=None, ignoreError=False):
@@ -715,7 +716,32 @@ if __name__ == "__main__":
                             classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
                 # jars from maven cache
-                classpath.extend(get_maven_jars(get_maven_libs(adeps)))
+                maven_libs = get_maven_libs(adeps)
+                maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
+                maven_libs_cache = {}
+                if os.path.isfile(maven_libs_cache_file):
+                    try:
+                        with open(maven_libs_cache_file, 'r') as fp:
+                            maven_libs_cache = json.load(fp)
+                    except:
+                        pass
+                if maven_libs_cache.get('version') != 1 or not maven_libs_cache.get('from') or sorted(maven_libs_cache['from']) != sorted(maven_libs):
+                    if os.path.isfile(maven_libs_cache_file):
+                        os.remove(maven_libs_cache_file)
+                    maven_libs_cache = {}
+                maven_jars = []
+                if maven_libs_cache:
+                    maven_jars = maven_libs_cache.get('jars')
+                elif maven_libs:
+                    maven_jars = get_maven_jars(maven_libs)
+                    cache = {'version':1, 'from':maven_libs, 'jars':maven_jars}
+                    try:
+                        with open(maven_libs_cache_file, 'w') as fp:
+                            json.dump(cache, fp)
+                    except:
+                        pass
+                if maven_jars:
+                    classpath.extend(maven_jars)
                 # aars from exploded-aar
                 darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
                 # TODO: use the max version
@@ -744,7 +770,13 @@ if __name__ == "__main__":
             javacargs.append('-sourcepath')
             javacargs.append(os.pathsep.join(srcs))
             javacargs.extend(msrclist)
-            cexec(javacargs)
+            # remove all cache if javac fail
+            def remove_cache_and_exit(args, code, stdout, stderr):
+                maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
+                if os.path.isfile(maven_libs_cache_file):
+                    os.remove(maven_libs_cache_file)
+                cexec_fail_exit(args, code, stdout, stderr)
+            cexec(javacargs, callback=remove_cache_and_exit)
 
             dxpath = get_dx(sdkdir)
             if not dxpath:
