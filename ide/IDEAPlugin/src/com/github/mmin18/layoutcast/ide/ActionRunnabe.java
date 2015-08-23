@@ -56,7 +56,8 @@ public class ActionRunnabe implements Runnable {
             }
         }
         if (pythonCommand == null) {
-            popupBollon(255, "Program \"python\" is not found in PATH");
+            popupBollon(-2, "Program \"python\" is not found in PATH");
+            StatUtils.send(castPy, -2, 0);
             return;
         }
 
@@ -95,8 +96,10 @@ public class ActionRunnabe implements Runnable {
             int exit = p.waitFor();
             String output = new String(bos.toByteArray());
             popupBollon(exit, output);
+            StatUtils.send(castPy, exit, System.currentTimeMillis() - runTime);
         } catch (Exception e) {
-            popupBollon(255, e.toString());
+            popupBollon(-1, e.toString());
+            StatUtils.send(castPy, -1, System.currentTimeMillis() - runTime);
         } finally {
             running = null;
         }
