@@ -26,13 +26,8 @@ import java.util.regex.Pattern;
  * Created by mmin18 on 7/29/15.
  */
 public class CastAction extends AnAction {
-    Process running;
-    long runTime;
 
     public void actionPerformed(final AnActionEvent e) {
-        if (running != null && System.currentTimeMillis() - runTime < 5000) {
-            return;
-        }
 
         Project currentProject = DataKeys.PROJECT.getData(e.getDataContext());
         FileDocumentManager.getInstance().saveAllDocuments();
@@ -59,10 +54,8 @@ public class CastAction extends AnAction {
             }
         }
 
-        final File finalCastPy = castPy;
-        new Thread(new ActionRunnabe(running,runTime,dir,finalCastPy,e)).start();
+        new Thread(new ActionRunnabe(dir, castPy, e)).start();
     }
-
 
 
     private static final Pattern R_VER = Pattern.compile("^__version__\\s*=\\s*['\"](\\d+\\.\\d+)['\"]", Pattern.MULTILINE);

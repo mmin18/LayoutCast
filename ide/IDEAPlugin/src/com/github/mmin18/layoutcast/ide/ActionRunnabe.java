@@ -18,66 +18,56 @@ import java.io.*;
 import java.util.ArrayList;
 
 /**
- *
  * The thread from CastAction.java has been separated into this modificated Runnable implementation.
- *
+ * <p/>
  * Created by 3mill on 2015-08-19.
  */
 public class ActionRunnabe implements Runnable {
-    /**
-     * Enum for chosing python command.
-     */
-    public enum PythonCommand{
 
-      PYTHON("python"),PY("py"),PYTHONEXE("python.exe");
+    public static final String[] CMDS = {"python", "py", "python.exe"};
+    private static Process running;
+    private static long runTime;
 
-        private String pythonCommandString;
-
-        PythonCommand(String pythonCommandString) {
-            this.pythonCommandString = pythonCommandString;
-        }
-
-        public String getCommandString(){
-            return pythonCommandString;
-        }
-    }
-
-    private static final String CANNOT_RUN_PROGRAM_ERROR="Cannot run program";
-
-
-    int exit = -1;
-    String output = "";
-
-
-    private Process running;
-    private long runTime;
     private File dir;
-    private File finalCastPy;
-    private AnActionEvent e;
+    private File castPy;
+    private AnActionEvent event;
 
-    public ActionRunnabe(Process running, long runTime, File dir, File finalCastPy, AnActionEvent e) {
-        this.running = running;
-        this.runTime = runTime;
+    public ActionRunnabe(File dir, File castPy, AnActionEvent e) {
         this.dir = dir;
-        this.finalCastPy = finalCastPy;
-        this.e = e;
+        this.castPy = castPy;
+        this.event = e;
     }
 
     @Override
     public void run() {
-        executeAction(PythonCommand.PYTHON);
-    }
+        if (running != null && System.currentTimeMillis() - runTime < 5000) {
+            return;
+        }
 
+        String pythonCommand = null;
+        for (String cmd : CMDS) {
+            try {
+                Process p = Runtime.getRuntime().exec(new String[]{cmd, "--version"});
+                if (p.waitFor() == 0) {
+                    pythonCommand = cmd;
+                    break;
+                }
+            } catch (Exception e) {
+            }
+        }
+        if (pythonCommand == null) {
+            popupBollon(255, "Program \"python\" is not found in PATH");
+            return;
+        }
 
-    private void executeAction(PythonCommand pythonCommand){
         try {
             if (running != null) {
                 running.destroy();
             }
             File androidSdk = getAndroidSdk();
             ArrayList<String> args = new ArrayList<String>();
-            args.add(pythonCommand.getCommandString());
-            args.add(finalCastPy.getAbsolutePath());
+            args.add(pythonCommand);
+            args.add(castPy.getAbsolutePath());
             if (androidSdk != null) {
                 args.add("--sdk");
                 args.add(androidSdk.getAbsolutePath());
@@ -102,34 +92,21 @@ public class ActionRunnabe implements Runnable {
                 bos.write(buf, 0, l);
             }
             ins.close();
-            exit = p.waitFor();
-            output = new String(bos.toByteArray());
+            int exit = p.waitFor();
+            String output = new String(bos.toByteArray());
+            popupBollon(exit, output);
         } catch (Exception e) {
-            /*In case when command was not recognized, the executeAction methos will be execute with next one.
-                In case when it fails with last one, the default error handling will be called.
-             */
-            if (e instanceof IOException && e.getMessage().startsWith(CANNOT_RUN_PROGRAM_ERROR)){
-                switch (pythonCommand){
-                    case PYTHON:
-                        executeAction(PythonCommand.PY);
-                        break;
-                    case PY:
-                        executeAction(PythonCommand.PYTHONEXE);
-                        break;
-                    case PYTHONEXE:
-                        handleError();
-                        break;
-                }
-            } else {
-                handleError();
-            }
+            popupBollon(255, e.toString());
         } finally {
             running = null;
         }
+    }
 
+    private void popupBollon(final int exit, final String output) {
         ApplicationManager.getApplication().invokeLater(new Runnable() {
             @Override
             public void run() {
+                String msg = output;
                 if (exit != 0 && output.length() > 1512) {
                     try {
                         File tmp = File.createTempFile("lcast_log", ".txt");
@@ -137,16 +114,16 @@ public class ActionRunnabe implements Runnable {
                         fos.write(output.getBytes());
                         fos.close();
 
-                        output = output.substring(0, 1500) + "...";
-                        output += "\n<a href=\"file://" + tmp.getAbsolutePath() + "\">see log</a>";
+                        msg = output.substring(0, 1500) + "...";
+                        msg += "\n<a href=\"file://" + tmp.getAbsolutePath() + "\">see log</a>";
                     } catch (Exception e) {
                     }
                 }
 
                 StatusBar statusBar = WindowManager.getInstance()
-                        .getStatusBar(DataKeys.PROJECT.getData(e.getDataContext()));
+                        .getStatusBar(DataKeys.PROJECT.getData(event.getDataContext()));
                 JBPopupFactory.getInstance()
-                        .createHtmlTextBalloonBuilder(output, exit == 0 ? MessageType.INFO : MessageType.ERROR, new HyperlinkListener() {
+                        .createHtmlTextBalloonBuilder(msg, exit == 0 ? MessageType.INFO : MessageType.ERROR, new HyperlinkListener() {
                             @Override
                             public void hyperlinkUpdate(HyperlinkEvent e) {
                                 if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
@@ -163,11 +140,6 @@ public class ActionRunnabe implements Runnable {
                                 Balloon.Position.atRight);
             }
         });
-    }
-    //code from catch Exception has been moved here.
-    private void handleError(){
-        exit = -1;
-        output = e.toString();
     }
 
     private static File getAndroidSdk() {
