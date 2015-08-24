@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50816'
+__version__ = '1.50821'
 __plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
@@ -13,6 +13,7 @@ import io
 import re
 import time
 import shutil
+import json
 
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def is_exe(fpath):
@@ -32,7 +33,14 @@ def which(program):
 
     return None
 
-def cexec(args, failOnError = True, addPath = None):
+def cexec_fail_exit(args, code, stdout, stderr):
+    if code != 0:
+        print('Fail to exec %s'%args)
+        print(stdout)
+        print(stderr)
+        exit(1)
+
+def cexec(args, callback = cexec_fail_exit, addPath = None):
     env = None
     if addPath:
         import copy
@@ -40,11 +48,8 @@ def cexec(args, failOnError = True, addPath = None):
         env['PATH'] = addPath + os.path.pathsep + env['PATH']
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
     output, err = p.communicate()
-    if failOnError and p.returncode != 0:
-        print('Fail to exec %s'%args)
-        print(output)
-        print(err)
-        exit(1)
+    if callback:
+        callback(args, p.returncode, output, err)
     return output
 
 def curl(url, body=None, ignoreError=False):
@@ -164,29 +169,27 @@ def package_name(dir):
     for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
         return pn
 
-def package_name_fromapk(dir,sdkdir):
-    apkpath = os.path.join(dir,'build','outputs','apk')
-    #Get the lastmodified *.apk file
-    lastModified = 0
-    maxt = 0
-    maxd = None
-    for dirpath, dirnames, files in os.walk(apkpath):
-        for fn in files:
-            if fn.endswith('.apk') and not fn.endswith('-unaligned.apk'):
-                lastModified = os.path.getmtime(os.path.join(dirpath, fn))
-                if lastModified > maxt:
-                    maxt = lastModified
-                    maxd = os.path.join(dirpath, fn)
-    #Get the package name from maxd           
+def package_name_fromapk(dir, sdkdir):
+    #Get the package name from maxd
     aaptpath = get_aapt(sdkdir)
-    if not aaptpath:
-        print('aapt not found in %s/build-tools'%sdkdir)
-        exit(1)
-    aaptargs = [aaptpath, 'dump','badging', maxd]
-    aaptargsstr = ' '.join(aaptargs)
-    cmdout = os.popen(aaptargsstr).read()            
-    for pn in re.findall('package: name=\'([^\']*)\'',cmdout):
-        return pn
+    if aaptpath:
+        apkpath = os.path.join(dir,'build','outputs','apk')
+        #Get the lastmodified *.apk file
+        maxt = 0
+        maxd = None
+        for dirpath, dirnames, files in os.walk(apkpath):
+            for fn in files:
+                if fn.endswith('.apk') and not fn.endswith('-unaligned.apk') and not fn.endswith('-unsigned.apk'):
+                    lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+                    if lastModified > maxt:
+                        maxt = lastModified
+                        maxd = os.path.join(dirpath, fn)
+        if maxd:
+            aaptargs = [aaptpath, 'dump','badging', maxd]
+            output = cexec(aaptargs, callback=None)
+            for pn in re.findall('package: name=\'([^\']+)\'', output):
+                return pn
+    return package_name(dir)
 
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
@@ -474,6 +477,53 @@ def search_path(dir, filename):
     else:
         return os.path.join(dir, 'debug')
 
+def get_maven_libs(projs):
+    maven_deps = []
+    for proj in projs:
+        str = open_as_text(os.path.join(proj, 'build.gradle'))
+        str = remove_comments(str)
+        for m in re.finditer(r'dependencies\s*\{', str):
+            depends = balanced_braces(str[m.start():])
+            for mvndep in re.findall(r'''compile\s+['"](.+:.+:.+)(?:@*)?['"]''', depends):
+                mvndeps = mvndep.split(':')
+                if not mvndeps in maven_deps:
+                    maven_deps.append(mvndeps)
+    return maven_deps
+
+def get_maven_jars(libs):
+    if not libs:
+        return []
+    jars = []
+    maven_path_prefix = []
+    # ~/.gralde/caches
+    gradle_home = os.path.join(os.path.expanduser('~'), '.gradle', 'caches')
+    for dirpath, dirnames, files in os.walk(gradle_home):
+        # search in ~/.gradle/**/GROUP_ID/ARTIFACT_ID/VERSION/**/*.jar
+        for mvndeps in libs:
+            if mvndeps[0] in dirnames:
+                dir1 = os.path.join(dirpath, mvndeps[0], mvndeps[1])
+                if os.path.isdir(dir1):
+                    dir2 = os.path.join(dir1, mvndeps[2])
+                    if os.path.isdir(dir2):
+                        maven_path_prefix.append(dir2)
+                    else:
+                        prefix = mvndeps[2]
+                        if '+' in prefix:
+                            prefix = prefix[0:prefix.index('+')]
+                        maxdir = ''
+                        for subd in os.listdir(dir1):
+                            if subd.startswith(prefix) and subd>maxdir:
+                                maxdir = subd
+                        if maxdir:
+                            maven_path_prefix.append(os.path.join(dir1, maxdir))
+        for dirprefix in maven_path_prefix:
+            if dirpath.startswith(dirprefix):
+                for fn in files:
+                    if fn.endswith('.jar') and not fn.startswith('.') and not fn.endswith('-sources.jar') and not fn.endswith('-javadoc.jar'):
+                        jars.append(os.path.join(dirpath, fn))
+                break
+    return jars
+
 if __name__ == "__main__":
 
     dir = '.'
@@ -510,7 +560,7 @@ if __name__ == "__main__":
     pnlist = [package_name_fromapk(i,sdkdir) for i in projlist]
     portlist = [0 for i in pnlist]
     stlist = [-1 for i in pnlist]
-
+   
     adbpath = get_adb(sdkdir)
     if not adbpath:
         print('adb not found in %s/platform-tools'%sdkdir)
@@ -539,7 +589,7 @@ if __name__ == "__main__":
         packagename = pnlist[i]
     for i in range(0, 10):
         if (41128+i) != port:
-            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], failOnError=False)
+            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
     if port==0:
         exit(1)
 
@@ -559,7 +609,7 @@ if __name__ == "__main__":
         for fn in os.listdir(rdir):
             if fn.endswith('.apk') and not '-androidTest' in fn:
                 fpath = os.path.join(rdir, fn)
-                lastBuild = os.path.getmtime(fpath)
+                lastBuild = max(lastBuild, os.path.getmtime(fpath))
     adeps = []
     adeps.extend(deps)
     adeps.append(dir)
@@ -665,6 +715,34 @@ if __name__ == "__main__":
                         if fjar.endswith('.jar'):
                             classpath.append(os.path.join(dlib, fjar))
             if is_gradle:
+                # jars from maven cache
+                maven_libs = get_maven_libs(adeps)
+                maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
+                maven_libs_cache = {}
+                if os.path.isfile(maven_libs_cache_file):
+                    try:
+                        with open(maven_libs_cache_file, 'r') as fp:
+                            maven_libs_cache = json.load(fp)
+                    except:
+                        pass
+                if maven_libs_cache.get('version') != 1 or not maven_libs_cache.get('from') or sorted(maven_libs_cache['from']) != sorted(maven_libs):
+                    if os.path.isfile(maven_libs_cache_file):
+                        os.remove(maven_libs_cache_file)
+                    maven_libs_cache = {}
+                maven_jars = []
+                if maven_libs_cache:
+                    maven_jars = maven_libs_cache.get('jars')
+                elif maven_libs:
+                    maven_jars = get_maven_jars(maven_libs)
+                    cache = {'version':1, 'from':maven_libs, 'jars':maven_jars}
+                    try:
+                        with open(maven_libs_cache_file, 'w') as fp:
+                            json.dump(cache, fp)
+                    except:
+                        pass
+                if maven_jars:
+                    classpath.extend(maven_jars)
+                # aars from exploded-aar
                 darr = os.path.join(dir, 'build', 'intermediates', 'exploded-aar')
                 # TODO: use the max version
                 for dirpath, dirnames, files in os.walk(darr):
@@ -692,7 +770,13 @@ if __name__ == "__main__":
             javacargs.append('-sourcepath')
             javacargs.append(os.pathsep.join(srcs))
             javacargs.extend(msrclist)
-            cexec(javacargs)
+            # remove all cache if javac fail
+            def remove_cache_and_exit(args, code, stdout, stderr):
+                maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
+                if os.path.isfile(maven_libs_cache_file):
+                    os.remove(maven_libs_cache_file)
+                cexec_fail_exit(args, code, stdout, stderr)
+            cexec(javacargs, callback=remove_cache_and_exit)
 
             dxpath = get_dx(sdkdir)
             if not dxpath:
@@ -718,7 +802,7 @@ if __name__ == "__main__":
 
     curl('http://127.0.0.1:%d/lcast'%port)
 
-    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], failOnError=False)
+    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None)
 
     elapsetime = time.time() - starttime
     print('finished in %dms'%(elapsetime*1000))

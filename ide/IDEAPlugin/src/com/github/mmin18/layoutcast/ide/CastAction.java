@@ -26,13 +26,8 @@ import java.util.regex.Pattern;
  * Created by mmin18 on 7/29/15.
  */
 public class CastAction extends AnAction {
-    Process running;
-    long runTime;
 
     public void actionPerformed(final AnActionEvent e) {
-        if (running != null && System.currentTimeMillis() - runTime < 5000) {
-            return;
-        }
 
         Project currentProject = DataKeys.PROJECT.getData(e.getDataContext());
         FileDocumentManager.getInstance().saveAllDocuments();
@@ -59,103 +54,9 @@ public class CastAction extends AnAction {
             }
         }
 
-        final File finalCastPy = castPy;
-        new Thread() {
-            int exit = -1;
-            String output = "";
-
-            @Override
-            public void run() {
-                try {
-                    if (running != null) {
-                        running.destroy();
-                    }
-                    File androidSdk = getAndroidSdk();
-                    ArrayList<String> args = new ArrayList<String>();
-                    args.add("python");
-                    args.add(finalCastPy.getAbsolutePath());
-                    if (androidSdk != null) {
-                        args.add("--sdk");
-                        args.add(androidSdk.getAbsolutePath());
-                    }
-                    args.add(dir.getAbsolutePath());
-                    Process p = Runtime.getRuntime().exec(args.toArray(new String[0]), null, dir);
-                    running = p;
-                    runTime = System.currentTimeMillis();
-                    InputStream ins = p.getInputStream();
-                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                    byte[] buf = new byte[4096];
-                    int l;
-                    while ((l = ins.read(buf)) != -1) {
-                        bos.write(buf, 0, l);
-                    }
-                    ins.close();
-                    if (bos.size() > 0) {
-                        bos.write('\n');
-                    }
-                    ins = p.getErrorStream();
-                    while ((l = ins.read(buf)) != -1) {
-                        bos.write(buf, 0, l);
-                    }
-                    ins.close();
-                    exit = p.waitFor();
-                    output = new String(bos.toByteArray());
-                } catch (Exception e) {
-                    exit = -1;
-                    output = e.toString();
-                } finally {
-                    running = null;
-                }
-
-                ApplicationManager.getApplication().invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (exit != 0 && output.length() > 1512) {
-                            try {
-                                File tmp = File.createTempFile("lcast_log", ".txt");
-                                FileOutputStream fos = new FileOutputStream(tmp);
-                                fos.write(output.getBytes());
-                                fos.close();
-
-                                output = output.substring(0, 1500) + "...";
-                                output += "\n<a href=\"file://" + tmp.getAbsolutePath() + "\">see log</a>";
-                            } catch (Exception e) {
-                            }
-                        }
-
-                        StatusBar statusBar = WindowManager.getInstance()
-                                .getStatusBar(DataKeys.PROJECT.getData(e.getDataContext()));
-                        JBPopupFactory.getInstance()
-                                .createHtmlTextBalloonBuilder(output, exit == 0 ? MessageType.INFO : MessageType.ERROR, new HyperlinkListener() {
-                                    @Override
-                                    public void hyperlinkUpdate(HyperlinkEvent e) {
-                                        if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                                            try {
-                                                java.awt.Desktop.getDesktop().browse(e.getURL().toURI());
-                                            } catch (Exception ex) {
-                                            }
-                                        }
-                                    }
-                                })
-                                .setFadeoutTime(exit == 0 ? 1500 : 6000)
-                                .createBalloon()
-                                .show(RelativePoint.getCenterOf(statusBar.getComponent()),
-                                        Balloon.Position.atRight);
-                    }
-                });
-            }
-        }.start();
+        new Thread(new ActionRunnabe(dir, castPy, e)).start();
     }
 
-    private static File getAndroidSdk() {
-        try {
-            ClassLoader cl = PluginManager.getPlugin(PluginId.getId("org.jetbrains.android")).getPluginClassLoader();
-            Class c = cl.loadClass("com.android.tools.idea.sdk.DefaultSdks");
-            return (File) c.getMethod("getDefaultAndroidHome").invoke(null);
-        } catch (Exception ex) {
-        }
-        return null;
-    }
 
     private static final Pattern R_VER = Pattern.compile("^__version__\\s*=\\s*['\"](\\d+\\.\\d+)['\"]", Pattern.MULTILINE);
 
