@@ -40,7 +40,7 @@ def cexec_fail_exit(args, code, stdout, stderr):
         print(stderr)
         exit(code)
 
-def cexec(args, callback = cexec_fail_exit, addPath = None):
+def cexec(args, callback = cexec_fail_exit, addPath = None,exitcode=1):
     env = None
     if addPath:
         import copy
@@ -48,8 +48,8 @@ def cexec(args, callback = cexec_fail_exit, addPath = None):
         env['PATH'] = addPath + os.path.pathsep + env['PATH']
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
     output, err = p.communicate()
-    if callback:
-        callback(args, p.returncode, output, err)
+    if callback and p.returncode:
+       callback(args,exitcode,output,err)
     return output
 
 def curl(url, body=None, ignoreError=False,exitcode=-1):
@@ -690,7 +690,7 @@ if __name__ == "__main__":
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
         aaptargs.append(android_jar)
-        cexec(aaptargs)
+        cexec(aaptargs,exitcode=18)
 
         with open(os.path.join(bindir, 'res.zip'), 'rb') as fp:
             curl('http://127.0.0.1:%d/pushres'%port, body=fp.read(),exitcode=11)
@@ -778,7 +778,7 @@ if __name__ == "__main__":
                 if os.path.isfile(maven_libs_cache_file):
                     os.remove(maven_libs_cache_file)
                 cexec_fail_exit(args, code, stdout, stderr)
-            cexec(javacargs, callback=remove_cache_and_exit)
+            cexec(javacargs, callback=remove_cache_and_exit,exitcode=19)
 
             dxpath = get_dx(sdkdir)
             if not dxpath:
@@ -791,7 +791,7 @@ if __name__ == "__main__":
             if os.name == 'nt':
                 # fix system32 java.exe issue
                 addPath = os.path.abspath(os.path.join(javac, os.pardir))
-            cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir], addPath = addPath)
+            cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir], addPath = addPath,exitcode=20)
 
             with open(dxoutput, 'rb') as fp:
                 curl('http://127.0.0.1:%d/pushdex'%port, body=fp.read(),exitcode=15)
@@ -804,7 +804,7 @@ if __name__ == "__main__":
 
     curl('http://127.0.0.1:%d/lcast'%port,exitcode=16)
 
-    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None)
+    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None,exitcode=21)
 
     elapsetime = time.time() - starttime
     print('finished in %dms'%(elapsetime*1000))
