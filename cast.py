@@ -38,7 +38,7 @@ def cexec_fail_exit(args, code, stdout, stderr):
         print('Fail to exec %s'%args)
         print(stdout)
         print(stderr)
-        exit(1)
+        exit(code)
 
 def cexec(args, callback = cexec_fail_exit, addPath = None):
     env = None
@@ -52,7 +52,7 @@ def cexec(args, callback = cexec_fail_exit, addPath = None):
         callback(args, p.returncode, output, err)
     return output
 
-def curl(url, body=None, ignoreError=False):
+def curl(url, body=None, ignoreError=False,exitcode=-1):
     import sys
     try:
         if sys.version_info >= (3, 0):
@@ -66,7 +66,7 @@ def curl(url, body=None, ignoreError=False):
             return None
         else:
             print(e)
-            exit(-1)
+            exit(exitcode)
 
 def open_as_text(path):
     if not path or not os.path.isfile(path):
@@ -551,11 +551,11 @@ if __name__ == "__main__":
         sdkdir = get_android_sdk(dir)
         if not sdkdir:
             print('android sdk not found, specify in local.properties or export ANDROID_HOME')
-            exit(1)
+            exit(2)
 
     if not projlist:
         print('no valid android project found in '+os.path.abspath(dir))
-        exit(1)
+        exit(3)
 
     pnlist = [package_name_fromapk(i,sdkdir) for i in projlist]
     portlist = [0 for i in pnlist]
@@ -564,7 +564,7 @@ if __name__ == "__main__":
     adbpath = get_adb(sdkdir)
     if not adbpath:
         print('adb not found in %s/platform-tools'%sdkdir)
-        exit(1)
+        exit(4)
     for i in range(0, 10):
         cexec([adbpath, 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
         output = curl('http://127.0.0.1:%d/packagename'%(41128+i), ignoreError=True)
@@ -579,9 +579,11 @@ if __name__ == "__main__":
     port=0
     if maxst == -1:
         print('package %s not found, make sure your project is properly setup and running'%(len(pnlist)==1 and pnlist[0] or pnlist))
+        exit(5)
     elif stlist.count(maxst) > 1:
         alist = [pnlist[i] for i in range(0, len(pnlist)) if stlist[i] >= 0]
         print('multiple packages %s running%s'%(alist, (maxst==2 and '.' or ', keep one of your application visible and cast again')))
+        exit(6)
     else:
         i = stlist.index(maxst)
         port = portlist[i]
@@ -591,14 +593,14 @@ if __name__ == "__main__":
         if (41128+i) != port:
             cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
     if port==0:
-        exit(1)
+        exit(17)
 
     is_gradle = is_gradle_project(dir)
 
     android_jar = get_android_jar(sdkdir)
     if not android_jar:
         print('android.jar not found !!!\nUse local.properties or set ANDROID_HOME env')
-
+        exit(7)
     deps = deps_list(dir)
     bindir = is_gradle and os.path.join(dir, 'build', 'lcast') or os.path.join(dir, 'bin', 'lcast')
 
@@ -657,17 +659,17 @@ if __name__ == "__main__":
         if not os.path.exists(os.path.join(binresdir, 'values')):
             os.makedirs(os.path.join(binresdir, 'values'))
 
-        data = curl('http://127.0.0.1:%d/ids.xml'%port)
+        data = curl('http://127.0.0.1:%d/ids.xml'%port,exitcode=8)
         with open(os.path.join(binresdir, 'values/ids.xml'), 'w') as fp:
             fp.write(data)
-        data = curl('http://127.0.0.1:%d/public.xml'%port)
+        data = curl('http://127.0.0.1:%d/public.xml'%port,exitcode=9)
         with open(os.path.join(binresdir, 'values/public.xml'), 'w') as fp:
             fp.write(data)
-
+        
         aaptpath = get_aapt(sdkdir)
         if not aaptpath:
             print('aapt not found in %s/build-tools'%sdkdir)
-            exit(1)
+            exit(10)
         aaptargs = [aaptpath, 'package', '-f', '--auto-add-overlay', '-F', os.path.join(bindir, 'res.zip')]
         aaptargs.append('-S')
         aaptargs.append(binresdir)
@@ -691,8 +693,8 @@ if __name__ == "__main__":
         cexec(aaptargs)
 
         with open(os.path.join(bindir, 'res.zip'), 'rb') as fp:
-            curl('http://127.0.0.1:%d/pushres'%port, body=fp.read())
-
+            curl('http://127.0.0.1:%d/pushres'%port, body=fp.read(),exitcode=11)
+        
     if srcModified:
         vmversion = curl('http://127.0.0.1:%d/vmversion'%port, ignoreError=True)
         if vmversion==None:
@@ -703,9 +705,9 @@ if __name__ == "__main__":
             javac = get_javac(jdkdir)
             if not javac:
                 print('javac is required to compile java code, config your PATH to include javac')
-                exit(-1)
+                exit(12)
 
-            launcher = curl('http://127.0.0.1:%d/launcher'%port)
+            launcher = curl('http://127.0.0.1:%d/launcher'%port,exitcode = 13)
 
             classpath = [android_jar]
             for dep in adeps:
@@ -781,7 +783,7 @@ if __name__ == "__main__":
             dxpath = get_dx(sdkdir)
             if not dxpath:
                 print('dx not found in %s/build-tools'%sdkdir)
-                exit(1)
+                exit(14)
             dxoutput = os.path.join(bindir, 'classes.dex')
             if os.path.isfile(dxoutput):
                 os.remove(dxoutput)
@@ -792,7 +794,7 @@ if __name__ == "__main__":
             cexec([dxpath, '--dex', '--output=%s'%dxoutput, binclassesdir], addPath = addPath)
 
             with open(dxoutput, 'rb') as fp:
-                curl('http://127.0.0.1:%d/pushdex'%port, body=fp.read())
+                curl('http://127.0.0.1:%d/pushdex'%port, body=fp.read(),exitcode=15)
 
         else:
             if is_gradle:
@@ -800,7 +802,7 @@ if __name__ == "__main__":
             else:
                 print('libs/lcast.jar is out of date, please update')
 
-    curl('http://127.0.0.1:%d/lcast'%port)
+    curl('http://127.0.0.1:%d/lcast'%port,exitcode=16)
 
     cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None)
 
