@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50821'
+__version__ = '1.50826'
 __plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
@@ -40,7 +40,7 @@ def cexec_fail_exit(args, code, stdout, stderr):
         print(stderr)
         exit(code)
 
-def cexec(args, callback = cexec_fail_exit, addPath = None,exitcode=1):
+def cexec(args, callback = cexec_fail_exit, addPath = None, exitcode=1):
     env = None
     if addPath:
         import copy
@@ -48,11 +48,14 @@ def cexec(args, callback = cexec_fail_exit, addPath = None,exitcode=1):
         env['PATH'] = addPath + os.path.pathsep + env['PATH']
     p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
     output, err = p.communicate()
-    if callback and p.returncode:
-       callback(args,exitcode,output,err)
+    code = p.returncode
+    if code and exitcode:
+        code = exitcode
+    if callback:
+       callback(args, code, output, err)
     return output
 
-def curl(url, body=None, ignoreError=False,exitcode=-1):
+def curl(url, body=None, ignoreError=False, exitcode=1):
     import sys
     try:
         if sys.version_info >= (3, 0):
@@ -774,9 +777,10 @@ if __name__ == "__main__":
             javacargs.extend(msrclist)
             # remove all cache if javac fail
             def remove_cache_and_exit(args, code, stdout, stderr):
-                maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
-                if os.path.isfile(maven_libs_cache_file):
-                    os.remove(maven_libs_cache_file)
+                if code:
+                    maven_libs_cache_file = os.path.join(bindir, 'cache-javac-maven.json')
+                    if os.path.isfile(maven_libs_cache_file):
+                        os.remove(maven_libs_cache_file)
                 cexec_fail_exit(args, code, stdout, stderr)
             cexec(javacargs, callback=remove_cache_and_exit,exitcode=19)
 
