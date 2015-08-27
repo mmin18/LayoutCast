@@ -325,9 +325,14 @@ def list_aar_projects(dir, deps):
             for fn in files:
                 if fn=='merger.xml':
                     data = open_as_text(os.path.join(dirpath, fn))
-                    for ppath in re.findall(r'''path="([^"]*?[/\\+]res)"''', data):
-                        if not ppath in list1:
-                            list1.append(ppath)
+                    for s in re.findall(r'''path="([^"]+)"''', data):
+                        (parent, child) = os.path.split(s)
+                        if child.endswith('.xml') or child.endswith('.png') or child.endswith('.jpg'):
+                            (parent, child) = os.path.split(parent)
+                            if isResName(child) and not parent in list1:
+                                list1.append(parent)
+                        elif os.path.isdir(s) and not s in list1 and countResDir(s) > 0:
+                            list1.append(s)
     list2 = []
     for ppath in list1:
         parpath = os.path.abspath(os.path.join(ppath, os.pardir))
