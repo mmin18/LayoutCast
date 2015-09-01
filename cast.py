@@ -243,6 +243,16 @@ def resdir(dir):
     else:
         return dir1
 
+def assetdir(dir):
+    path = []
+    dir1 = os.path.join(dir, 'assets')
+    dir2 = os.path.join(dir, 'src', 'main', 'assets')
+    if os.path.exists(dir1) and os.listdir(dir1):
+        path.append(dir1)
+    if os.path.exists(dir2) and os.listdir(dir2):
+        path.append(dir2)
+    return path
+
 def countSrcDir2(dir, lastBuild=0, list=None):
     count = 0
     lastModified = 0
@@ -689,6 +699,16 @@ if __name__ == "__main__":
             for dep in reversed(list_aar_projects(dir, deps)):
                 aaptargs.append('-S')
                 aaptargs.append(dep)
+        for asdir in assetdir(dir):
+            if asdir:
+                aaptargs.append('-A')
+                aaptargs.append(str(asdir))
+        for dep in reversed(deps):
+            for asdir in assetdir(dep):
+                if asdir:
+                    aaptargs.append('-A')
+                    aaptargs.append(str(asdir))
+
         aaptargs.append('-M')
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
