@@ -191,19 +191,9 @@ def package_name_fromapk(dir, sdkdir):
     #Get the package name from maxd
     aaptpath = get_aapt(sdkdir)
     if aaptpath:
-        apkpath = os.path.join(dir,'build','outputs','apk')
-        #Get the lastmodified *.apk file
-        maxt = 0
-        maxd = None
-        for dirpath, dirnames, files in os.walk(apkpath):
-            for fn in files:
-                if fn.endswith('.apk') and not fn.endswith('-unaligned.apk') and not fn.endswith('-unsigned.apk'):
-                    lastModified = os.path.getmtime(os.path.join(dirpath, fn))
-                    if lastModified > maxt:
-                        maxt = lastModified
-                        maxd = os.path.join(dirpath, fn)
-        if maxd:
-            aaptargs = [aaptpath, 'dump','badging', maxd]
+        apkpath = get_apk_path(dir)
+        if apkpath:
+            aaptargs = [aaptpath, 'dump','badging', apkpath]
             output = cexec(aaptargs, callback=None)
             for pn in re.findall('package: name=\'([^\']+)\'', output):
                 return pn
