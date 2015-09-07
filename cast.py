@@ -246,6 +246,14 @@ def countResDir(dir):
         return 0
     return c
 
+def countAssetDir(dir):
+    a = 0
+    if os.path.isdir(dir):
+        for subd in os.listdir(dir):
+            if not subd.startswith('.'):
+                a+=1
+    return a
+
 def resdir(dir):
     dir1 = os.path.join(dir, 'res')
     dir2 = os.path.join(dir, 'src', 'main', 'res')
@@ -261,8 +269,8 @@ def resdir(dir):
 def assetdir(dir):
     dir1 = os.path.join(dir, 'assets')
     dir2 = os.path.join(dir, 'src', 'main', 'assets')
-    a = countResDir(dir1)
-    b = countResDir(dir2)
+    a = countAssetDir(dir1)
+    b = countAssetDir(dir2)
     if b==0 and a==0:
         return None
     elif b>a:
@@ -275,7 +283,6 @@ def get_asset_from_apk(apk_filename, dest_dir):
         for member in zf.infolist():
             path = dest_dir
             if member.filename.startswith('assets/'):
-                print member.filename
                 zf.extract(member,path)
 
 def countSrcDir2(dir, lastBuild=0, list=None):
@@ -658,14 +665,19 @@ if __name__ == "__main__":
     srcs = []
     msrclist = []
     for dep in adeps:
-        rdir = resdir(dep)
-        if rdir:
-            for subd in os.listdir(rdir):
-                if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
-                    for fn in os.listdir(os.path.join(rdir, subd)):
-                        fpath = os.path.join(rdir, subd, fn)
-                        if os.path.isfile(fpath) and not fn.startswith('.'):
-                            latestResModified = max(latestResModified, os.path.getmtime(fpath))
+        rdirs = []
+        rdirs.append(assetdir(dep))
+        rdirs.append(resdir(dep))
+        for rdir in rdirs:
+            if rdir:
+                for subd in os.listdir(rdir):
+                    if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
+                        for fn in os.listdir(os.path.join(rdir, subd)):
+                            fpath = os.path.join(rdir, subd, fn)
+                            if os.path.isfile(fpath) and not fn.startswith('.'):
+                                latestResModified = max(latestResModified, os.path.getmtime(fpath))
+                    elif os.path.isfile(os.path.join(rdir,subd)) and not subd.startswith('.'):
+                        latestResModified = max(latestResModified, os.path.getmtime(rdir))              
         (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
         if sdir:
             srcs.append(sdir)
