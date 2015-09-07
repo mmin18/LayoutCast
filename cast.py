@@ -269,6 +269,8 @@ def assetdir(dir):
         return dir1
 
 def get_asset_from_apk(apk_filename, dest_dir):
+    if os.path.join(dest_dir,'assets'):
+        shutil.rmtree(os.path.join(dest_dir,'assets'))
     with zipfile.ZipFile(apk_filename) as zf:
         for member in zf.infolist():
             path = dest_dir
@@ -654,11 +656,11 @@ if __name__ == "__main__":
     latestSrcModified = 0
     srcs = []
     msrclist = []
+    assetdirs = []
     for dep in adeps:
-        rdirs = []
-        rdirs.append(assetdir(dep))
-        rdirs.append(resdir(dep))
-        for rdir in rdirs:
+        adirs = assetdir(dep)
+        rdirs = resdir(dep)
+        for rdir in [adirs,rdirs]:
             if rdir:
                 for subd in os.listdir(rdir):
                     if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
@@ -667,7 +669,9 @@ if __name__ == "__main__":
                             if os.path.isfile(fpath) and not fn.startswith('.'):
                                 latestResModified = max(latestResModified, os.path.getmtime(fpath))
                     elif os.path.isfile(os.path.join(rdir,subd)) and not subd.startswith('.'):
-                        latestResModified = max(latestResModified, os.path.getmtime(rdir))              
+                        latestResModified = max(latestResModified, os.path.getmtime(rdir))
+                        if latestResModified > lastBuild and not rdir in assetdirs:
+                            assetdirs.append(rdir)
         (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
         if sdir:
             srcs.append(sdir)
@@ -710,7 +714,6 @@ if __name__ == "__main__":
         apk_path = get_apk_path(dir)
         get_asset_from_apk(apk_path,bindir)
         assets_path = os.path.join(bindir,"assets")
-
         aaptpath = get_aapt(sdkdir)
         if not aaptpath:
             print('aapt not found in %s/build-tools'%sdkdir)
@@ -731,10 +734,12 @@ if __name__ == "__main__":
             for dep in reversed(list_aar_projects(dir, deps)):
                 aaptargs.append('-S')
                 aaptargs.append(dep)
-        
+        print assetdirs
+        for assetdir in assetdirs:
+            aaptargs.append('-A')
+            aaptargs.append(assetdir)
         aaptargs.append('-A')
         aaptargs.append(assets_path)
-
         aaptargs.append('-M')
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
