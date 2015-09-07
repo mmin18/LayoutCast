@@ -14,6 +14,7 @@ import re
 import time
 import shutil
 import json
+import zipfile,os.path
 
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def is_exe(fpath):
@@ -172,6 +173,20 @@ def package_name(dir):
     for pn in re.findall('package=\"([\w\d_\.]+)\"', data):
         return pn
 
+def get_apk_path(dir):
+    apkpath = os.path.join(dir,'build','outputs','apk')
+    #Get the lastmodified *.apk file
+    maxt = 0
+    maxd = None
+    for dirpath, dirnames, files in os.walk(apkpath):
+        for fn in files:
+            if fn.endswith('.apk') and not fn.endswith('-unaligned.apk') and not fn.endswith('-unsigned.apk'):
+                lastModified = os.path.getmtime(os.path.join(dirpath, fn))
+                if lastModified > maxt:
+                    maxt = lastModified
+                    maxd = os.path.join(dirpath, fn)
+    return maxd
+
 def package_name_fromapk(dir, sdkdir):
     #Get the package name from maxd
     aaptpath = get_aapt(sdkdir)
@@ -244,14 +259,24 @@ def resdir(dir):
         return dir1
 
 def assetdir(dir):
-    path = []
     dir1 = os.path.join(dir, 'assets')
     dir2 = os.path.join(dir, 'src', 'main', 'assets')
-    if os.path.exists(dir1) and os.listdir(dir1):
-        path.append(dir1)
-    if os.path.exists(dir2) and os.listdir(dir2):
-        path.append(dir2)
-    return path
+    a = countResDir(dir1)
+    b = countResDir(dir2)
+    if b==0 and a==0:
+        return None
+    elif b>a:
+        return dir2
+    else:
+        return dir1
+
+def get_asset_from_apk(apk_filename, dest_dir):
+    with zipfile.ZipFile(apk_filename) as zf:
+        for member in zf.infolist():
+            path = dest_dir
+            if member.filename.startswith('assets/'):
+                print member.filename
+                zf.extract(member,path)
 
 def countSrcDir2(dir, lastBuild=0, list=None):
     count = 0
@@ -678,7 +703,12 @@ if __name__ == "__main__":
         data = curl('http://127.0.0.1:%d/public.xml'%port,exitcode=9)
         with open(os.path.join(binresdir, 'values/public.xml'), 'w') as fp:
             fp.write(data)
-        
+
+        #Get the assets path
+        apk_path = get_apk_path(dir)
+        get_asset_from_apk(apk_path,bindir)
+        assets_path = os.path.join(bindir,"assets")
+
         aaptpath = get_aapt(sdkdir)
         if not aaptpath:
             print('aapt not found in %s/build-tools'%sdkdir)
@@ -699,15 +729,9 @@ if __name__ == "__main__":
             for dep in reversed(list_aar_projects(dir, deps)):
                 aaptargs.append('-S')
                 aaptargs.append(dep)
-        for asdir in assetdir(dir):
-            if asdir:
-                aaptargs.append('-A')
-                aaptargs.append(str(asdir))
-        for dep in reversed(deps):
-            for asdir in assetdir(dep):
-                if asdir:
-                    aaptargs.append('-A')
-                    aaptargs.append(str(asdir))
+        
+        aaptargs.append('-A')
+        aaptargs.append(assets_path)
 
         aaptargs.append('-M')
         aaptargs.append(manifestpath(dir))
