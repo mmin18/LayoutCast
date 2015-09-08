@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50827'
+__version__ = '1.50908'
 __plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
@@ -14,7 +14,7 @@ import re
 import time
 import shutil
 import json
-import zipfile,os.path
+import zipfile
 
 # http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
 def is_exe(fpath):
@@ -269,8 +269,6 @@ def assetdir(dir):
         return dir1
 
 def get_asset_from_apk(apk_filename, dest_dir):
-    if os.path.join(dest_dir,'assets'):
-        shutil.rmtree(os.path.join(dest_dir,'assets'))
     with zipfile.ZipFile(apk_filename) as zf:
         for member in zf.infolist():
             path = dest_dir
@@ -663,20 +661,25 @@ if __name__ == "__main__":
     msrclist = []
     assetdirs = []
     for dep in adeps:
-        adirs = assetdir(dep)
-        rdirs = resdir(dep)
-        for rdir in [adirs,rdirs]:
-            if rdir:
-                for subd in os.listdir(rdir):
-                    if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
-                        for fn in os.listdir(os.path.join(rdir, subd)):
-                            fpath = os.path.join(rdir, subd, fn)
-                            if os.path.isfile(fpath) and not fn.startswith('.'):
-                                latestResModified = max(latestResModified, os.path.getmtime(fpath))
-                    elif os.path.isfile(os.path.join(rdir,subd)) and not subd.startswith('.'):
-                        latestResModified = max(latestResModified, os.path.getmtime(rdir))
-                        if latestResModified > lastBuild and not rdir in assetdirs:
-                            assetdirs.append(rdir)
+        adir = assetdir(dep)
+        if adir:
+            latestModified = 0
+            for dirpath, dirnames, files in os.walk(adir):
+                for fn in files:
+                    if not fn.startswith('.'):
+                        fpath = os.path.join(dirpath, fn)
+                        latestModified = max(latestModified, os.path.getmtime(fpath))
+            latestResModified = max(latestResModified, latestModified)
+            if latestModified > lastBuild:
+                assetdirs.append(adir)
+        rdir = resdir(dep)
+        if rdir:
+            for subd in os.listdir(rdir):
+                if os.path.isdir(os.path.join(rdir, subd)) and isResName(subd):
+                    for fn in os.listdir(os.path.join(rdir, subd)):
+                        fpath = os.path.join(rdir, subd, fn)
+                        if os.path.isfile(fpath) and not fn.startswith('.'):
+                            latestResModified = max(latestResModified, os.path.getmtime(fpath))
         (sdir, scount, smt) = srcdir2(dep, lastBuild=lastBuild, list=msrclist)
         if sdir:
             srcs.append(sdir)
@@ -717,8 +720,11 @@ if __name__ == "__main__":
 
         #Get the assets path
         apk_path = get_apk_path(dir)
-        get_asset_from_apk(apk_path,bindir)
-        assets_path = os.path.join(bindir,"assets")
+        if apk_path:
+            assets_path = os.path.join(bindir,"assets")
+            if os.path.isdir(assets_path):
+                shutil.rmtree(assets_path)
+            get_asset_from_apk(apk_path, bindir)
         aaptpath = get_aapt(sdkdir)
         if not aaptpath:
             print('aapt not found in %s/build-tools'%sdkdir)
@@ -739,7 +745,6 @@ if __name__ == "__main__":
             for dep in reversed(list_aar_projects(dir, deps)):
                 aaptargs.append('-S')
                 aaptargs.append(dep)
-        print assetdirs
         for assetdir in assetdirs:
             aaptargs.append('-A')
             aaptargs.append(assetdir)
