@@ -831,7 +831,7 @@ if __name__ == "__main__":
             shutil.rmtree(binclassesdir, ignore_errors=True)
             os.makedirs(binclassesdir)
 
-            javacargs = [javac, '-target', '1.7', '-source', '1.7']
+            javacargs = [javac, '-target', '1.7', '-source', '1.7', '-encoding', 'UTF-8']
             javacargs.append('-cp')
             javacargs.append(os.pathsep.join(classpath))
             javacargs.append('-d')
