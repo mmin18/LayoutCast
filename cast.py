@@ -663,8 +663,11 @@ if __name__ == "__main__":
     for dep in adeps:
         adir = assetdir(dep)
         if adir:
-            latestModified = 0
+            latestModified = os.path.getmtime(adir)
             for dirpath, dirnames, files in os.walk(adir):
+                for dirname in dirnames:
+                    if not dirname.startswith('.'):
+                        latestModified = max(latestModified, os.path.getmtime(os.path.join(dirpath, dirname)))
                 for fn in files:
                     if not fn.startswith('.'):
                         fpath = os.path.join(dirpath, fn)
