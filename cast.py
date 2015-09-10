@@ -199,6 +199,19 @@ def package_name_fromapk(dir, sdkdir):
                 return pn
     return package_name(dir)
 
+def get_lastest_packagename(dirlist,sdkdir):
+    lastModified = 0
+    maxt = 0
+    maxd = None
+    for dir in dirlist:
+        if dir:
+            apkfile= get_apk_path(dir)
+            lastModified = os.path.getmtime(apkfile)
+            if lastModified > maxt:
+                maxt = lastModified
+                maxd = dir
+    return package_name_fromapk(dir,sdkdir)
+
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
         return 2
@@ -564,6 +577,25 @@ def get_maven_jars(libs):
                 break
     return jars
 
+def scan_port(adbpath, pnlist, projlist):
+    port = 0
+    prodir = None
+    packagename = None
+    for i in range(0,10):
+        cexec([adbpath, 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
+        output = curl('http://127.0.0.1:%d/packagename'%(41128+i), ignoreError=True)
+        if output and output in pnlist :
+            index = pnlist.index(output) # index of this app in projlist
+            state = curl('http://127.0.0.1:%d/appstate'%(41128+i), ignoreError=True)
+            if int(state) == 2:
+                port = 41128+i
+                prodir = projlist[index]
+                packagename = output
+                for i in range(0, 10):
+                    if (41128+i) != port:
+                        cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
+    return port, prodir, packagename
+
 if __name__ == "__main__":
 
     dir = '.'
@@ -599,41 +631,21 @@ if __name__ == "__main__":
 
     pnlist = [package_name_fromapk(i,sdkdir) for i in projlist]
     portlist = [0 for i in pnlist]
-    stlist = [-1 for i in pnlist]
-   
     adbpath = get_adb(sdkdir)
     if not adbpath:
         print('adb not found in %s/platform-tools'%sdkdir)
         exit(4)
-    for i in range(0, 10):
-        cexec([adbpath, 'forward', 'tcp:%d'%(41128+i), 'tcp:%d'%(41128+i)])
-        output = curl('http://127.0.0.1:%d/packagename'%(41128+i), ignoreError=True)
-        if output and output in pnlist:
-            ii=pnlist.index(output)
-            output = curl('http://127.0.0.1:%d/appstate'%(41128+i), ignoreError=True)
-            if output and int(output) > stlist[ii]:
-                portlist[ii] = (41128+i)
-                stlist[ii] = int(output)
+    port, dir, packagename = scan_port(adbpath, pnlist, projlist)
 
-    maxst = max(stlist)
-    port=0
-    if maxst == -1:
+    if port == 0:
+        #launch app
+        args = [adbpath,'shell','monkey','-p',get_lastest_packagename(projlist,sdkdir),'-c','android.intent.category.LAUNCHER','1']
+        cexec(args)
+        port, dir, packagename = scan_port(adbpath, pnlist, projlist)
+
+    if port == 0:
         print('package %s not found, make sure your project is properly setup and running'%(len(pnlist)==1 and pnlist[0] or pnlist))
         exit(5)
-    elif stlist.count(maxst) > 1:
-        alist = [pnlist[i] for i in range(0, len(pnlist)) if stlist[i] >= 0]
-        print('multiple packages %s running%s'%(alist, (maxst==2 and '.' or ', keep one of your application visible and cast again')))
-        exit(6)
-    else:
-        i = stlist.index(maxst)
-        port = portlist[i]
-        dir = projlist[i]
-        packagename = pnlist[i]
-    for i in range(0, 10):
-        if (41128+i) != port:
-            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
-    if port==0:
-        exit(17)
 
     is_gradle = is_gradle_project(dir)
 
