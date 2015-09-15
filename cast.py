@@ -199,18 +199,19 @@ def package_name_fromapk(dir, sdkdir):
                 return pn
     return package_name(dir)
 
-def get_lastest_packagename(dirlist,sdkdir):
-    lastModified = 0
+def get_latest_packagename(dirlist,sdkdir):
     maxt = 0
     maxd = None
     for dir in dirlist:
         if dir:
             apkfile= get_apk_path(dir)
-            lastModified = os.path.getmtime(apkfile)
-            if lastModified > maxt:
-                maxt = lastModified
-                maxd = dir
-    return package_name_fromapk(dir,sdkdir)
+            if apkfile:
+                lastModified = os.path.getmtime(apkfile)
+                if lastModified > maxt:
+                    maxt = lastModified
+                    maxd = dir
+    if maxd:
+        return package_name_fromapk(maxd,sdkdir)
 
 def isResName(name):
     if name=='drawable' or name.startswith('drawable-'):
@@ -587,13 +588,14 @@ def scan_port(adbpath, pnlist, projlist):
         if output and output in pnlist :
             index = pnlist.index(output) # index of this app in projlist
             state = curl('http://127.0.0.1:%d/appstate'%(41128+i), ignoreError=True)
-            if int(state) == 2:
+            if state and int(state) >= 2:
                 port = 41128+i
                 prodir = projlist[index]
                 packagename = output
-                for i in range(0, 10):
-                    if (41128+i) != port:
-                        cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
+                break
+    for i in range(0, 10):
+        if (41128+i) != port:
+            cexec([adbpath, 'forward', '--remove', 'tcp:%d'%(41128+i)], callback=None)
     return port, prodir, packagename
 
 if __name__ == "__main__":
@@ -639,9 +641,15 @@ if __name__ == "__main__":
 
     if port == 0:
         #launch app
-        args = [adbpath,'shell','monkey','-p',get_lastest_packagename(projlist,sdkdir),'-c','android.intent.category.LAUNCHER','1']
-        cexec(args)
-        port, dir, packagename = scan_port(adbpath, pnlist, projlist)
+        latest_package = get_latest_packagename(projlist, sdkdir)
+        if latest_package:
+            cexec([adbpath,'shell','monkey','-p',latest_package,'-c','android.intent.category.LAUNCHER','1'], callback=None)
+            for i in range(0, 6):
+                # try 6 times to wait the application launches
+                port, dir, packagename = scan_port(adbpath, pnlist, projlist)
+                if port:
+                    break
+                time.sleep(0.25)
 
     if port == 0:
         print('package %s not found, make sure your project is properly setup and running'%(len(pnlist)==1 and pnlist[0] or pnlist))
