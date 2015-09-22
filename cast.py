@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 __author__ = 'mmin18'
-__version__ = '1.50915'
+__version__ = '1.50922'
 __plugin__ = '1'
 
 from subprocess import Popen, PIPE, check_call
@@ -771,8 +771,9 @@ if __name__ == "__main__":
         for assetdir in assetdirs:
             aaptargs.append('-A')
             aaptargs.append(assetdir)
-        aaptargs.append('-A')
-        aaptargs.append(assets_path)
+        if os.path.isdir(assets_path):
+            aaptargs.append('-A')
+            aaptargs.append(assets_path)
         aaptargs.append('-M')
         aaptargs.append(manifestpath(dir))
         aaptargs.append('-I')
@@ -890,9 +891,9 @@ if __name__ == "__main__":
             else:
                 print('libs/lcast.jar is out of date, please update')
 
-    curl('http://127.0.0.1:%d/lcast'%port,exitcode=16)
+    curl('http://127.0.0.1:%d/lcast'%port, ignoreError=True)
 
-    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None,exitcode=21)
+    cexec([adbpath, 'forward', '--remove', 'tcp:%d'%port], callback=None)
 
     elapsetime = time.time() - starttime
     print('finished in %dms'%(elapsetime*1000))
