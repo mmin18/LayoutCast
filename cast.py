@@ -174,7 +174,10 @@ def package_name(dir):
         return pn
 
 def get_apk_path(dir):
-    apkpath = os.path.join(dir,'build','outputs','apk')
+    if not is_gradle_project(dir):
+        apkpath = os.path.join(dir,'bin')
+    else:
+        apkpath = os.path.join(dir,'build','outputs','apk')
     #Get the lastmodified *.apk file
     maxt = 0
     maxd = None
