@@ -16,6 +16,10 @@ import com.github.mmin18.layoutcast.util.ArtUtils;
 import com.github.mmin18.layoutcast.util.ResUtils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class LayoutCast {
 
@@ -34,17 +38,19 @@ public class LayoutCast {
 		File dir = new File(app.getCacheDir(), "lcast");
 		File dex = new File(dir, "dex.ped");
 		File res = new File(dir, "res.ped");
-
+		String vmVersion = System.getProperty("java.vm.version");
+		pathch(dir,context,app,"Hack.apk");
 		if (dex.length() > 0) {
 			File f = new File(dir, "dex.apk");
 			dex.renameTo(f);
 			File opt = new File(dir, "opt");
 			opt.mkdirs();
-			final String vmVersion = System.getProperty("java.vm.version");
 			if (vmVersion != null && vmVersion.startsWith("2")) {
 				ArtUtils.overrideClassLoader(app.getClassLoader(), f, opt);
 			} else {
-				Log.e("lcast", "cannot cast dex to daivik, only support ART now.");
+				File fnew = new File(dir, "sam.dex");
+				f.renameTo(fnew);
+				ArtUtils.overrideClassLoader(app.getClassLoader(), fnew, opt);
 			}
 		}
 
@@ -93,5 +99,37 @@ public class LayoutCast {
 				return false;
 			}
 		}
+	}
+	public static boolean pathch(File dir,Context context,Application app,String fname){
+		boolean result = true;
+		File fout = new File(dir, fname);
+		try {
+			if(!fout.exists()) {
+				if (!fout.getParentFile().exists()){
+					fout.getParentFile().mkdir();
+				}
+				fout.createNewFile();
+			}
+			FileOutputStream fileOutputStream = null;
+			fileOutputStream = new FileOutputStream(fout);
+			InputStream in = context.getAssets().open(fname);
+			byte [] buffer = new byte[1024];
+			int len = -1;
+			while ((len = in.read(buffer)) != -1){
+				fileOutputStream.write(buffer,0,len);
+			}
+			in.close();
+			fileOutputStream.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
+		File opt = new File(dir, "opt");
+		opt.mkdirs();
+		ArtUtils.overrideClassLoader(app.getClassLoader(), fout, opt);
+		return result;
 	}
 }
