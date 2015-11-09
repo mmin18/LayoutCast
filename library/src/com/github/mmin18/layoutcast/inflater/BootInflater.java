@@ -52,13 +52,22 @@ public class BootInflater extends BaseInflater {
 		systemInflater = inflater;
 		Class<?> cCtxImpl = app.getBaseContext().getClass();
 		if ("android.app.ContextImpl".equals(cCtxImpl.getName())) {
+			ClassLoader cl = cCtxImpl.getClassLoader();
+			Class<?> cSer = cCtxImpl; // SystemServiceRegistry after Android 6.0
+			boolean androidM = false;
 			try {
-				ClassLoader cl = cCtxImpl.getClassLoader();
-				Class<?> cStaticFetcher = cl
-						.loadClass("android.app.ContextImpl$StaticServiceFetcher");
+				cSer = cl.loadClass("android.app.SystemServiceRegistry");
+				androidM = true;
+			} catch(Exception e) {
+			}
+
+			try {
+				Class<?> cStaticFetcher = cl.loadClass(
+						androidM ? "android.app.SystemServiceRegistry$StaticServiceFetcher" :
+						"android.app.ContextImpl$StaticServiceFetcher");
 				Class<?> cFetcherContainer = null;
 				for (int i = 1; i < 50; i++) {
-					String cn = "android.app.ContextImpl$" + i;
+					String cn = (androidM ? "android.app.SystemServiceRegistry$" : "android.app.ContextImpl$") + i;
 					try {
 						Class<?> c = cl.loadClass(cn);
 						if (cStaticFetcher.isAssignableFrom(c)) {
@@ -75,7 +84,7 @@ public class BootInflater extends BaseInflater {
 				Field f = cStaticFetcher.getDeclaredField("mCachedInstance");
 				f.setAccessible(true);
 				f.set(fetcher, new BootInflater(app));
-				f = cCtxImpl.getDeclaredField("SYSTEM_SERVICE_MAP");
+				f = cSer.getDeclaredField(androidM ? "SYSTEM_SERVICE_FETCHERS" : "SYSTEM_SERVICE_MAP");
 				f.setAccessible(true);
 				HashMap<String, Object> map = (HashMap<String, Object>) f
 						.get(null);
