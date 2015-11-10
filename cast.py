@@ -790,9 +790,7 @@ if __name__ == "__main__":
         vmversion = curl('http://127.0.0.1:%d/vmversion'%port, ignoreError=True)
         if vmversion==None:
             vmversion = ''
-        if vmversion.startswith('1'):
-            print('cast dex to dalvik vm is not supported, you need ART in Android 5.0')
-        elif vmversion.startswith('2'):
+        if vmversion.startswith('1') or vmversion.startswith('2'):
             javac = get_javac(jdkdir)
             if not javac:
                 print('javac is required to compile java code, config your PATH to include javac')
