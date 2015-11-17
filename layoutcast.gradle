@@ -1,89 +1,17 @@
+String lcPackageName
+String lcAppName
+String lcAppOverlayPackage
+String lcAppOverlayName
 
-buildscript {
-	repositories {
-		jcenter()
-	}
-	dependencies {
-		def pluginVersion
-
-		def searchGradleVersion = { java.lang.Class clazz ->
-			if (!clazz.getName().startsWith('com.android.build.gradle')) {
-				return
-			}
-			java.lang.ClassLoader cl = clazz.getClassLoader()
-			if (!cl instanceof URLClassLoader) {
-				return
-			}
-			java.util.regex.Pattern p = java.util.regex.Pattern.compile('[/\\\\]+com.android.tools.build[/\\\\]+gradle[/\\\\]+([^/\\\\]+)[/\\\\]+')
-			cl.URLs.each {
-				URL url = it
-				java.util.regex.Matcher m = p.matcher(url.path)
-				if (m.find()) {
-					pluginVersion = m.group(1)
-					return true
-				}
-			}
-		}
-		tasks.each { Task t ->
-			searchGradleVersion(t.getClass())
-			if (pluginVersion) {
-				return true;
-			}
-			// search sub tasks
-//			t.dependsOn.each {
-//				searchGradleVersion(it.getClass())
-//				if (pluginVersion) {
-//					return true;
-//				}
-//			}
-//			if (pluginVersion) {
-//				return true
-//			}
-		}
-
-		if (pluginVersion == null)
-			pluginVersion = '1.3.0'
-		def cp = "com.android.tools.build:gradle:${pluginVersion}"
-		classpath cp
-
-		System.setProperty('gradleVersion', pluginVersion)
-	}
-}
-
-//buildscript {
-//	repositories {
-//		jcenter()
-//	}
-//	dependencies {
-//		classpath 'com.android.tools.build:gradle:1.3.0'
-//	}
-//}
-
-def lcGradleVersion = System.getProperty('gradleVersion')
-def lcPackageName
-def lcAppName
-def lcActivityName
-
-println "LayoutCast 2.0 [com.android.tools.build:gradle:${lcGradleVersion}]"
+println "LayoutCast 2.0"
 
 afterEvaluate {
+	// com.android.build.gradle.tasks.MergeManifests
+	// processDebugManifest (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0, 1.5.0)
 	def tProcessDebugManifest = tasks.getByName('processDebugManifest')
 	if (tProcessDebugManifest) {
-		task lcBeforeManifest << {
-			// com.android.build.gradle.internal.dependency.ManifestDependencyImpl
-			def cMDI = tProcessDebugManifest.getClass().getClassLoader().loadClass('com.android.build.gradle.internal.dependency.ManifestDependencyImpl')
-			def lcAm = cMDI.getConstructor(File.class, List.class).newInstance(new File('/Users/mmin18/Desktop/AndroidManifest.xml'), new ArrayList())
-			tProcessDebugManifest.libraries = new ArrayList<?>(tProcessDebugManifest.libraries)
-			tProcessDebugManifest.libraries.add(lcAm)
-		}
-		tProcessDebugManifest.dependsOn(lcBeforeManifest)
-
 		task lcAfterManifest << {
-			def outManifest
-			tProcessDebugManifest.outputs.files.any {
-				outManifest = it
-				return true
-			}
+			File outManifest = tProcessDebugManifest.getManifestOutputFile()
 			def xp = javax.xml.xpath.XPathFactory.newInstance().newXPath()
 			xp.setNamespaceContext(new javax.xml.namespace.NamespaceContext() {
 				@Override
@@ -109,98 +37,142 @@ afterEvaluate {
 
 			fis = new FileInputStream(outManifest)
 			ins = new org.xml.sax.InputSource(fis)
-			lcAppName = xp.compile('/manifest/application/@android:name').evaluate(ins)
+			String rawAppName = xp.compile('/manifest/application/@android:name').evaluate(ins)
 			fis.close()
+			if (rawAppName != null && rawAppName.startsWith('.')) {
+				lcAppName = lcPackageName + rawAppName
+				lcAppOverlayPackage = lcPackageName
+				lcAppOverlayName = rawAppName.substring(1) + '_LayoutCastOverlay'
+			} else if (rawAppName != null && rawAppName.length() > 0) {
+				lcAppName = rawAppName
+				int i = rawAppName.lastIndexOf('.')
+				lcAppOverlayName = (i < 0 ? rawAppName : rawAppName.substring(i+1)) + '_LayoutCastOverlay'
+				lcAppOverlayPackage = i < 0 ? lcPackageName : rawAppName.substring(0, i)
+			} else {
+				lcAppOverlayName = 'LayoutCastApplication'
+				lcAppOverlayPackage = lcPackageName
+			}
 
-			fis = new FileInputStream(outManifest)
-			ins = new org.xml.sax.InputSource(fis)
-			lcActivityName = xp.compile('/manifest/application/activity[intent-filter/action/@android:name=\"android.intent.action.MAIN\" and intent-filter/category/@android:name=\"android.intent.category.LAUNCHER\"]/@android:name').evaluate(ins)
-			fis.close()
+			// replace application.name
+			// add android.permission.INTERNET
+			// add com.github.mmin18.layoutcast.ResetActivity
+			javax.xml.parsers.DocumentBuilderFactory dbFactory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+			dbFactory.setNamespaceAware(true)
+			javax.xml.parsers.DocumentBuilder dBuilder = dbFactory.newDocumentBuilder()
+			org.w3c.dom.Document doc = dBuilder.parse(outManifest)
+			org.w3c.dom.Element app = doc.getDocumentElement().getElementsByTagName('application').item(0)
+			org.w3c.dom.Node name = app.getAttributeNodeNS('http://schemas.android.com/apk/res/android', 'name')
+			def appOverlay = "${lcAppOverlayPackage}.${lcAppOverlayName}"
+			if (name) {
+				name.setNodeValue(appOverlay)
+			} else {
+				app.getAttributeNodeNS('http://schemas.android.com/apk/res/android', 'name', appOverlay)
+			}
+			String perm = xp.compile('/manifest/uses-permission[@android:name="android.permission.INTERNET"]/@android:name').evaluate(doc)
+			String actv = xp.compile('/manifest/application/activity[@android:name="com.github.mmin18.layoutcast.ResetActivity"]/@android:name').evaluate(doc)
+			if (perm == null || perm.length() == 0) {
+				org.w3c.dom.Element e = doc.createElement('uses-permission')
+				e.setAttributeNS('http://schemas.android.com/apk/res/android', 'name', 'android.permission.INTERNET')
+				app.appendChild(e)
+			}
+			if (actv == null || actv.length() == 0) {
+				org.w3c.dom.Element e = doc.createElement('activity')
+				e.setAttributeNS('http://schemas.android.com/apk/res/android', 'name', 'com.github.mmin18.layoutcast.ResetActivity')
+//				e.setAttribute('android:name', 'com.github.mmin18.layoutcast.ResetActivity')
+				app.appendChild(e)
+			}
+
+			File dir = new File(project.buildDir, 'lcast')
+			dir.mkdirs()
+			File file = new File(dir, 'AndroidManifest.xml')
+
+			javax.xml.transform.TransformerFactory tf = javax.xml.transform.TransformerFactory.newInstance();
+			javax.xml.transform.Transformer transformer = tf.newTransformer();
+			StringWriter writer = new StringWriter();
+			transformer.transform(new javax.xml.transform.dom.DOMSource(doc), new javax.xml.transform.stream.StreamResult(writer));
+			String output = writer.getBuffer().toString();
+			if (file.length() <= 0 || !output.equals(file.getText('utf-8'))) {
+				file.write(output, 'utf-8')
+			}
 		}
 		tProcessDebugManifest.finalizedBy(lcAfterManifest)
 	} else {
-		throw new Exception('LayoutCast cannot process AndroidManifest.xml')
+		throw new Exception('LayoutCast fail in manifest')
 	}
 
+	// org.gradle.api.tasks.compile.JavaCompile
+	// compileDebugJava (1.1.0, 1.1.3, 1.2.0, 1.2.3)
+	// compileDebugJavaWithJavac (1.3.0, 1.5.0)
 	def tJavac = tasks.findByName('compileDebugJavaWithJavac')
 	if (tJavac == null) {
 		tJavac = tasks.findByName('compileDebugJava')
 	}
 	if (tJavac) {
-		task lcAfterJavac << {
-			// TODO: may break incremental task?
+		task lcBeforeJavac << {
 			org.gradle.api.tasks.compile.JavaCompile jc = tJavac
-			java.io.File outDir = jc.getDestinationDir()
-			if (lcAppName) {
-				java.io.File appFile = outDir
-				java.util.StringTokenizer st = new java.util.StringTokenizer(lcAppName, ".")
-				while (st.hasMoreTokens()) {
-					String nt = st.nextToken()
-					if (!st.hasMoreTokens()) {
-						nt += '.class'
-					}
-					appFile = new File(appFile, nt)
-				}
-				if (appFile.length() > 0) {
-					InputStream ins = new FileInputStream(appFile);
-					org.objectweb.asm.ClassReader cr = new org.objectweb.asm.ClassReader(ins);
-					org.objectweb.asm.ClassWriter cw = new org.objectweb.asm.ClassWriter(cr, org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
-					org.objectweb.asm.ClassVisitor cv = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM4,cw) {
-						@Override
-						public org.objectweb.asm.MethodVisitor visitMethod(int access, String name, String desc,
-																		   String signature, String[] exceptions) {
-							if (name == 'onCreate') {
-								org.objectweb.asm.MethodVisitor mv = cw.visitMethod(access, name, desc, signature, exceptions);
-								return new org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM4, mv) {
-									@Override
-									public void visitCode() {
-										super.visitCode();
-
-										// com.github.mmin18.LayoutCast.init(this);
-										mv.visitVarInsn(org.objectweb.asm.Opcodes.ALOAD, 0);
-										mv.visitMethodInsn(org.objectweb.asm.Opcodes.INVOKESTATIC, 'com/github/mmin18/layoutcast/LayoutCast', 'init', '(Landroid/content/Context;)V', false);
-
-										println "LayoutCast added init code in ${appFile}.onCreate()"
-									}
-								}
-							} else {
-								return super.visitMethod(access, name, desc, signature, exceptions)
-							}
-						}
-					}
-					cr.accept(cv, 0)
-					byte[] bytes = cw.toByteArray()
-					ins.close()
-					java.io.FileOutputStream fos = new java.io.FileOutputStream(appFile)
-					fos.write(bytes)
-					fos.close()
-				} else {
-					throw new Exception('LayoutCast cannot find ' + appFile)
-				}
+			File dir = new File(project.buildDir, 'lcast')
+			dir.mkdirs()
+			File app = new File(dir, "${lcAppOverlayName}.java")
+			String content = "package ${lcAppOverlayPackage};\n" +
+					"public class ${lcAppOverlayName} extends ${lcAppName == null ? 'android.app.Application' : lcAppName} {\n" +
+					"@Override public void onCreate() {\n" +
+					"try {\n" +
+					"Class.forName(\"com.github.mmin18.layoutcast.LayoutCast\").getDeclaredMethod(\"init\", android.content.Context.class).invoke(null, this);\n" +
+					"} catch(Exception e) { throw new RuntimeException(e); }\n" +
+					"super.onCreate();\n" +
+					"}}"
+			if (app.length() <= 0 || !content.equals(app.getText('utf-8'))) {
+				app.write(content, 'utf-8')
 			}
+			jc.source(app)
 		}
-		tJavac.finalizedBy(lcAfterJavac)
+		tJavac.dependsOn(lcBeforeJavac)
 	} else {
-		throw new Exception('LayoutCast cannot process init code')
+		throw new Exception('LayoutCast fail in javac')
 	}
 
+	// com.android.build.gradle.tasks.Dex
+	// dexDebug (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0)
 	def tDex = tasks.findByName('dexDebug')
-	if (tDex == null) {
-		tDex = tasks.findByName('transformClassesWithDexForDebug')
-	}
 	if (tDex) {
 		task lcBeforeDex << {
-			println tDex.getClass()
-			// 1.5
-//			println tDex.consumedInputStreams
-//			println tDex.referencedInputStreams
-
-			// 1.3
 			tDex.libraries = new ArrayList<?>(tDex.libraries)
 			tDex.libraries.add(new File('/Users/mmin18/Desktop/lc.jar'))
 		}
 		tDex.dependsOn(lcBeforeDex)
 	} else {
-		throw new Exception('LayoutCast cannot process dex')
+		// com.android.build.gradle.internal.pipeline.TransformTask
+		// transformClassesWithDexForDebug (1.5.0)
+		tDex = tasks.findByName('transformClassesWithDexForDebug')
+		if (tDex) {
+			task lcBeforeDex << {
+				java.lang.ClassLoader cl = tDex.class.classLoader
+				Class cos = cl.loadClass('com.android.build.gradle.internal.pipeline.OriginalStream')
+				Class ctm = cl.loadClass('com.android.build.gradle.internal.pipeline.TransformManager')
+				Class cs = cl.loadClass('com.android.build.api.transform.QualifiedContent$Scope')
+				def builder = cos.getDeclaredMethod('builder').invoke(null)
+				builder.class.getDeclaredMethod('addContentTypes', Set.class).invoke(builder, ctm.getDeclaredField('CONTENT_JARS').get(null))
+				builder.class.getDeclaredMethod('addScope', cs).invoke(builder, cs.getDeclaredField('EXTERNAL_LIBRARIES').get(null))
+				builder.class.getDeclaredMethod('setJar', File.class).invoke(builder, new File('/Users/mmin18/Desktop/lc.jar'))
+				def os = builder.class.getDeclaredMethod('build').invoke(builder)
+				tDex.consumedInputStreams.add(os)
+			}
+			tDex.dependsOn(lcBeforeDex)
+		} else {
+			throw new Exception('LayoutCast fail in dex')
+		}
+	}
+
+	// com.android.build.gradle.tasks.ProcessAndroidResources
+	// processDebugResources (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0, 1.5.0)
+	def tPackage = tasks.getByName('processDebugResources')
+	if (tPackage) {
+		task lcBeforePackage << {
+			File dir = new File(project.buildDir, 'lcast')
+			tPackage.manifestFile = new File(dir, 'AndroidManifest.xml')
+		}
+		tPackage.dependsOn(lcBeforePackage)
+	} else {
+		throw new Exception('LayoutCast fail in aapt package')
 	}
 }
