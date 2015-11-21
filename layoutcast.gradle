@@ -3,12 +3,17 @@ String lcAppName
 String lcAppOverlayPackage
 String lcAppOverlayName
 
-println "LayoutCast 2.0"
+String lcDep = 'com.github.mmin18.layoutcast:library:1.1.5@aar'
+println "LayoutCast 2.0 with ${lcDep}"
+
+dependencies {
+	compile lcDep
+}
 
 afterEvaluate {
 	// com.android.build.gradle.tasks.MergeManifests
 	// processDebugManifest (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0, 1.5.0)
-	def tProcessDebugManifest = tasks.getByName('processDebugManifest')
+	def tProcessDebugManifest = tasks.findByName('processDebugManifest')
 	if (tProcessDebugManifest) {
 		task lcAfterManifest << {
 			File outManifest = tProcessDebugManifest.getManifestOutputFile()
@@ -131,41 +136,9 @@ afterEvaluate {
 		throw new Exception('LayoutCast fail in javac')
 	}
 
-	// com.android.build.gradle.tasks.Dex
-	// dexDebug (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0)
-	def tDex = tasks.findByName('dexDebug')
-	if (tDex) {
-		task lcBeforeDex << {
-			tDex.libraries = new ArrayList<?>(tDex.libraries)
-			tDex.libraries.add(new File('/Users/mmin18/Desktop/lc.jar'))
-		}
-		tDex.dependsOn(lcBeforeDex)
-	} else {
-		// com.android.build.gradle.internal.pipeline.TransformTask
-		// transformClassesWithDexForDebug (1.5.0)
-		tDex = tasks.findByName('transformClassesWithDexForDebug')
-		if (tDex) {
-			task lcBeforeDex << {
-				java.lang.ClassLoader cl = tDex.class.classLoader
-				Class cos = cl.loadClass('com.android.build.gradle.internal.pipeline.OriginalStream')
-				Class ctm = cl.loadClass('com.android.build.gradle.internal.pipeline.TransformManager')
-				Class cs = cl.loadClass('com.android.build.api.transform.QualifiedContent$Scope')
-				def builder = cos.getDeclaredMethod('builder').invoke(null)
-				builder.class.getDeclaredMethod('addContentTypes', Set.class).invoke(builder, ctm.getDeclaredField('CONTENT_JARS').get(null))
-				builder.class.getDeclaredMethod('addScope', cs).invoke(builder, cs.getDeclaredField('EXTERNAL_LIBRARIES').get(null))
-				builder.class.getDeclaredMethod('setJar', File.class).invoke(builder, new File('/Users/mmin18/Desktop/lc.jar'))
-				def os = builder.class.getDeclaredMethod('build').invoke(builder)
-				tDex.consumedInputStreams.add(os)
-			}
-			tDex.dependsOn(lcBeforeDex)
-		} else {
-			throw new Exception('LayoutCast fail in dex')
-		}
-	}
-
 	// com.android.build.gradle.tasks.ProcessAndroidResources
 	// processDebugResources (1.1.0, 1.1.3, 1.2.0, 1.2.3, 1.3.0, 1.5.0)
-	def tPackage = tasks.getByName('processDebugResources')
+	def tPackage = tasks.findByName('processDebugResources')
 	if (tPackage) {
 		task lcBeforePackage << {
 			File dir = new File(project.buildDir, 'lcast')
